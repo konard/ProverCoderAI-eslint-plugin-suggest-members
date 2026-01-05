@@ -1,0 +1,21 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"rootDir": ".",
+		"outDir": "dist",
+		"types": ["vitest"],
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["src/*"]
+		}
+	},
+	"include": [
+		"src/**/*",
+		"tests/**/*",
+		"types/**/*.d.ts",
+		"vite.config.ts",
+		"vitest.config.ts",
+		"eslint.config.mts"
+	],
+	"exclude": ["dist", "node_modules"]
+}

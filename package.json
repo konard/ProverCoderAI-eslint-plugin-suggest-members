@@ -1,0 +1,46 @@
+{
+  "name": "effect-template-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monorepo workspace for effect-template",
+  "packageManager": "pnpm@10.27.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm --filter @effect-template/eslint-template build",
+    "check": "pnpm --filter @effect-template/eslint-template check",
+    "changeset": "changeset",
+    "changeset-publish": "node -e \"if (!process.env.NPM_TOKEN) { console.log('Skipping publish: NPM_TOKEN is not set'); process.exit(0); }\" && changeset publish",
+    "changeset-version": "changeset version",
+    "lint": "pnpm --filter @effect-template/eslint-template lint",
+    "lint:tests": "pnpm --filter @effect-template/app lint:tests",
+    "test": "pnpm --filter @effect-template/eslint-template test",
+    "typecheck": "pnpm --filter @effect-template/eslint-template typecheck",
+    "lint-app": "pnpm --filter @effect-template/app lint"
+  },
+  "devDependencies": {
+    "@changesets/changelog-github": "^0.5.2",
+    "@changesets/cli": "^2.29.8"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ProverCoderAI/effect-template.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ProverCoderAI/effect-template/issues"
+  },
+  "homepage": "https://github.com/ProverCoderAI/effect-template#readme",
+  "license": "ISC",
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "esbuild",
+      "node-pty"
+    ],
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "msgpackr-extract",
+      "unrs-resolver"
+    ]
+  }
+}
