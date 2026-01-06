@@ -47,6 +47,15 @@ ruleTester.run("suggest-members", suggestMembersRule, {
         void na1me
       `,
       errors: [{ messageId: "suggestMembers" }]
+    },
+    {
+      filename,
+      code: `
+        type Named = { readonly kind: "named"; readonly name: string }
+        const variant: Named = { kin1d: "named", name: "ok" }
+        void variant
+      `,
+      errors: [{ messageId: "suggestMembers" }]
     }
   ]
 })

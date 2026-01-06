@@ -100,4 +100,22 @@ describe("message formatting", () => {
     expect(message).toContain("Did you mean:")
     expect(message).toContain("- formatGreeting")
   })
+
+  it("deduplicates repeated suggestion lines", () => {
+    const message = formatMemberMessage("kin1d", "Variant", [
+      {
+        name: "kind",
+        score: makeSimilarityScore(0.9),
+        signature: "(value: string) => string"
+      },
+      {
+        name: "kind",
+        score: makeSimilarityScore(0.9),
+        signature: "(value: string) => string"
+      }
+    ])
+
+    const matches = message.match(/- kind/g) ?? []
+    expect(matches.length).toBe(1)
+  })
 })

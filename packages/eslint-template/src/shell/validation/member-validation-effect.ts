@@ -8,7 +8,7 @@
 // INVARIANT: Valid | InvalidMember
 // COMPLEXITY: O(n log n)/O(n)
 import { Effect, Match, pipe } from "effect"
-import type * as ts from "typescript"
+import * as ts from "typescript"
 
 import type { MemberValidationResult } from "../../core/index.js"
 import {
@@ -25,14 +25,24 @@ import type { TypeScriptServiceError } from "../effects/errors.js"
 import { type TypeScriptCompilerService, TypeScriptCompilerServiceTag } from "../services/typescript-compiler.js"
 import { enrichSuggestionsWithSymbolMapEffect } from "./suggestion-signatures.js"
 
-type MemberPropertyService = Pick<
+type MemberMetadataService = Pick<
   TypeScriptCompilerService,
-  "getTypeAtLocation" | "getTypeName" | "getPropertiesOfType"
+  "getTypeName" | "getPropertiesOfType"
 >
 
+type MemberPropertyService =
+  & MemberMetadataService
+  & Pick<TypeScriptCompilerService, "getTypeAtLocation">
+
+type MemberContextualService =
+  & MemberMetadataService
+  & Pick<TypeScriptCompilerService, "getContextualType">
+
 type MemberSignatureService =
-  & MemberPropertyService
+  & MemberMetadataService
   & Pick<TypeScriptCompilerService, "getSymbolTypeSignature">
+
+type MemberNodeService = MemberPropertyService & MemberSignatureService
 
 interface PropertyMetadata {
   readonly names: ReadonlyArray<string>
@@ -40,30 +50,68 @@ interface PropertyMetadata {
   readonly typeName?: string
 }
 
-const collectPropertyMetadata = (
+const collectUnionPropertiesEffect = (
+  objectType: ts.Type,
+  tsService: MemberMetadataService
+): Effect.Effect<ReadonlyArray<ts.Symbol>, TypeScriptServiceError> =>
+  Effect.gen(function*(_) {
+    if (!objectType.isUnion()) {
+      return yield* _(tsService.getPropertiesOfType(objectType))
+    }
+
+    const properties: Array<ts.Symbol> = []
+    for (const part of objectType.types) {
+      const partProps = yield* _(
+        pipe(
+          tsService.getPropertiesOfType(part),
+          Effect.catchAll(() => Effect.sync((): ReadonlyArray<ts.Symbol> => []))
+        )
+      )
+      for (const prop of partProps) {
+        properties.push(prop)
+      }
+    }
+
+    return properties
+  })
+
+const collectPropertyMetadataForType = (
+  objectType: ts.Type,
   tsNode: ts.Node,
-  tsService: MemberPropertyService
+  tsService: MemberMetadataService
 ): Effect.Effect<PropertyMetadata, TypeScriptServiceError> =>
   Effect.gen(function*(_) {
-    const objectType = yield* _(tsService.getTypeAtLocation(tsNode))
     const typeName = yield* _(
       pipe(
         tsService.getTypeName(objectType, tsNode),
         Effect.catchAll(() => Effect.sync((): string | undefined => undefined))
       )
     )
-    const properties = yield* _(tsService.getPropertiesOfType(objectType))
+    const properties = yield* _(collectUnionPropertiesEffect(objectType, tsService))
 
-    const names = properties.map((prop) => prop.getName())
+    const names: Array<string> = []
     const symbols = new Map<string, ts.Symbol>()
     for (const symbol of properties) {
-      symbols.set(symbol.getName(), symbol)
+      const name = symbol.getName()
+      if (!symbols.has(name)) {
+        names.push(name)
+        symbols.set(name, symbol)
+      }
     }
 
     return typeName && typeName.length > 0
       ? { names, symbols, typeName }
       : { names, symbols }
   })
+
+const collectPropertyMetadata = (
+  tsNode: ts.Node,
+  tsService: MemberPropertyService
+): Effect.Effect<PropertyMetadata, TypeScriptServiceError> =>
+  pipe(
+    tsService.getTypeAtLocation(tsNode),
+    Effect.flatMap((objectType) => collectPropertyMetadataForType(objectType, tsNode, tsService))
+  )
 
 const enrichMemberSuggestionsEffect = (
   suggestions: ReadonlyArray<SuggestionWithScore>,
@@ -78,36 +126,75 @@ const enrichMemberSuggestionsEffect = (
     tsService.getSymbolTypeSignature
   )
 
+const buildMemberValidationEffectWithMetadata = (
+  propertyName: string,
+  esTreeNode: BaseESLintNode,
+  tsNode: ts.Node,
+  tsService: MemberSignatureService,
+  metadata: PropertyMetadata
+): Effect.Effect<MemberValidationResult, TypeScriptServiceError> =>
+  metadata.names.includes(propertyName)
+    ? Effect.succeed(makeValidResult())
+    : pipe(
+      findSimilarCandidatesEffect(propertyName, metadata.names),
+      Effect.flatMap((suggestions) =>
+        suggestions.length === 0
+          ? Effect.succeed(makeValidResult())
+          : pipe(
+            enrichMemberSuggestionsEffect(
+              suggestions,
+              metadata,
+              tsNode,
+              tsService
+            ),
+            Effect.map((enriched) => makeInvalidMemberResult(propertyName, enriched, esTreeNode, metadata.typeName))
+          )
+      )
+    )
+
 const buildMemberValidationEffect = (
   propertyName: string,
   esTreeNode: BaseESLintNode,
   tsNode: ts.Node,
-  tsService: MemberSignatureService
+  tsService: MemberNodeService
 ): Effect.Effect<MemberValidationResult, TypeScriptServiceError> =>
   pipe(
     collectPropertyMetadata(tsNode, tsService),
-    Effect.flatMap((metadata) => {
-      if (metadata.names.includes(propertyName)) {
-        return Effect.succeed(makeValidResult())
-      }
-
-      return pipe(
-        findSimilarCandidatesEffect(propertyName, metadata.names),
-        Effect.flatMap((suggestions) =>
-          suggestions.length === 0
-            ? Effect.succeed(makeValidResult())
-            : pipe(
-              enrichMemberSuggestionsEffect(
-                suggestions,
-                metadata,
-                tsNode,
-                tsService
-              ),
-              Effect.map((enriched) => makeInvalidMemberResult(propertyName, enriched, esTreeNode, metadata.typeName))
-            )
-        )
+    Effect.flatMap((metadata) =>
+      buildMemberValidationEffectWithMetadata(
+        propertyName,
+        esTreeNode,
+        tsNode,
+        tsService,
+        metadata
       )
-    })
+    )
+  )
+
+const buildMemberValidationEffectFromContextualType = (
+  propertyName: string,
+  esTreeNode: BaseESLintNode,
+  tsNode: ts.Expression,
+  tsService: MemberContextualService & MemberSignatureService
+): Effect.Effect<MemberValidationResult, TypeScriptServiceError> =>
+  pipe(
+    tsService.getContextualType(tsNode),
+    Effect.flatMap((contextualType) =>
+      contextualType
+        ? pipe(
+          collectPropertyMetadataForType(contextualType, tsNode, tsService),
+          Effect.flatMap((metadata) =>
+            buildMemberValidationEffectWithMetadata(
+              propertyName,
+              esTreeNode,
+              tsNode,
+              tsService,
+              metadata
+            )
+          )
+        )
+        : Effect.succeed(makeValidResult())
+    )
   )
 
 interface MemberValidationParams {
@@ -176,6 +263,36 @@ export const validateMemberPropertyNameEffect = (
     tsNode,
     skipValidation: false
   })
+
+export const validateObjectLiteralPropertyNameEffect = (
+  propertyName: string,
+  esTreeNode: BaseESLintNode,
+  tsNode: ts.Node
+): Effect.Effect<
+  MemberValidationResult,
+  TypeScriptServiceError,
+  TypeScriptCompilerServiceTag
+> =>
+  pipe(
+    Effect.gen(function*(_) {
+      if (propertyName.length === 0) {
+        return makeValidResult()
+      }
+
+      const tsService = yield* _(TypeScriptCompilerServiceTag)
+      if (!ts.isExpression(tsNode)) {
+        return makeValidResult()
+      }
+      return yield* _(
+        buildMemberValidationEffectFromContextualType(
+          propertyName,
+          esTreeNode,
+          tsNode,
+          tsService
+        )
+      )
+    })
+  )
 
 export const formatMemberValidationMessage = (
   result: MemberValidationResult

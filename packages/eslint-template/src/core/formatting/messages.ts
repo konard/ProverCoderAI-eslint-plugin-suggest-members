@@ -207,13 +207,19 @@ const formatSuggestionList = (
   includeSignatures: boolean
 ): string => {
   const top = suggestions.slice(0, MAX_SUGGESTIONS)
-  return top
-    .flatMap((suggestion) =>
-      formatSuggestionLines(suggestion, includeSignatures).map(
-        (line) => `  - ${line}`
-      )
+  const lines = top.flatMap((suggestion) =>
+    formatSuggestionLines(suggestion, includeSignatures).map(
+      (line) => `  - ${line}`
     )
-    .join("\n")
+  )
+  const seen = new Set<string>()
+  const unique: Array<string> = []
+  for (const line of lines) {
+    if (seen.has(line)) continue
+    seen.add(line)
+    unique.push(line)
+  }
+  return unique.join("\n")
 }
 
 const formatWithSuggestions = (

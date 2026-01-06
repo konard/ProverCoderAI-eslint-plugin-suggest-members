@@ -40,6 +40,21 @@ export const createGetTypeAtLocationEffect = (
       catch: () => makeTypeNotFoundError("type-not-found")
     }))
 
+export const createGetContextualTypeEffect = (
+  checker: ts.TypeChecker | undefined
+) =>
+(
+  node: ts.Expression
+): Effect.Effect<ts.Type | undefined, TypeScriptServiceError> =>
+  createTypeScriptEffect(checker, (availableChecker) =>
+    Effect.try({
+      try: () => availableChecker.getContextualType(node),
+      catch: (error) =>
+        makeTypeResolutionError(
+          error instanceof Error ? error.message : "contextual-type-error"
+        )
+    }))
+
 export const createGetPropertiesOfTypeEffect = (
   checker: ts.TypeChecker | undefined
 ) =>

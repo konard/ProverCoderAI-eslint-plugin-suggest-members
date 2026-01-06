@@ -13,6 +13,7 @@ import type * as ts from "typescript"
 
 import type { TypeScriptServiceError } from "../effects/errors.js"
 import {
+  createGetContextualTypeEffect,
   createGetPropertiesOfTypeEffect,
   createGetSymbolAtLocationEffect,
   createGetSymbolsInScopeEffect,
@@ -39,6 +40,10 @@ export interface TypeScriptCompilerService {
   readonly getTypeAtLocation: (
     node: ts.Node
   ) => Effect.Effect<ts.Type, TypeScriptServiceError>
+
+  readonly getContextualType: (
+    node: ts.Expression
+  ) => Effect.Effect<ts.Type | undefined, TypeScriptServiceError>
 
   readonly getTypeName: (
     type: ts.Type,
@@ -87,6 +92,7 @@ export const makeTypeScriptCompilerService = (
   getSymbolAtLocation: createGetSymbolAtLocationEffect(checker),
   getSymbolsInScope: createGetSymbolsInScopeEffect(checker),
   getTypeAtLocation: createGetTypeAtLocationEffect(checker),
+  getContextualType: createGetContextualTypeEffect(checker),
   getTypeName: createGetTypeNameEffect(checker),
   getPropertiesOfType: createGetPropertiesOfTypeEffect(checker),
   getExportsOfModule: createGetExportsOfModuleEffect(checker, program),

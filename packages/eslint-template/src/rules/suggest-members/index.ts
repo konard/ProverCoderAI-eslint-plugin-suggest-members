@@ -14,6 +14,8 @@ import type { Layer } from "effect"
 import { Effect, pipe } from "effect"
 import type * as ts from "typescript"
 
+import type { MemberValidationResult } from "../../core/index.js"
+import type { TypeScriptServiceError } from "../../shell/effects/errors.js"
 import {
   makeTypeScriptCompilerServiceLayer,
   type TypeScriptCompilerServiceTag
@@ -22,7 +24,8 @@ import { runValidationEffect } from "../../shell/shared/validation-runner.js"
 import {
   formatMemberValidationMessage,
   validateMemberAccessEffectWithNodes,
-  validateMemberPropertyNameEffect
+  validateMemberPropertyNameEffect,
+  validateObjectLiteralPropertyNameEffect
 } from "../../shell/validation/member-validation-effect.js"
 
 const createRule = ESLintUtils.RuleCreator((name) =>
@@ -32,6 +35,12 @@ const createRule = ESLintUtils.RuleCreator((name) =>
 interface NodeMap {
   readonly get: (key: TSESTree.Node) => ts.Node | undefined
 }
+
+type MemberValidationEffect = Effect.Effect<
+  MemberValidationResult,
+  TypeScriptServiceError,
+  TypeScriptCompilerServiceTag
+>
 
 const createValidateAndReport = (
   tsServiceLayer: Layer.Layer<TypeScriptCompilerServiceTag>,
@@ -59,21 +68,27 @@ const createValidateAndReport = (
   })
 }
 
-const validateObjectPatternProperty = (
+const validateObjectProperty = (
   tsServiceLayer: Layer.Layer<TypeScriptCompilerServiceTag>,
   context: RuleContext<"suggestMembers", []>,
-  esTreeNodeToTSNodeMap: NodeMap
+  esTreeNodeToTSNodeMap: NodeMap,
+  parentType: AST_NODE_TYPES.ObjectExpression | AST_NODE_TYPES.ObjectPattern,
+  buildValidationEffect: (
+    propertyName: string,
+    reportNode: TSESTree.Identifier,
+    tsNode: ts.Node
+  ) => MemberValidationEffect
 ) =>
 (property: TSESTree.Property): void => {
   if (property.computed) return
   if (property.key.type !== AST_NODE_TYPES.Identifier) return
-  if (property.parent.type !== AST_NODE_TYPES.ObjectPattern) return
+  if (property.parent.type !== parentType) return
 
-  const tsPatternNode = esTreeNodeToTSNodeMap.get(property.parent)
-  if (!tsPatternNode) return
+  const tsParentNode = esTreeNodeToTSNodeMap.get(property.parent)
+  if (!tsParentNode) return
 
   const validationEffect = pipe(
-    validateMemberPropertyNameEffect(property.key.name, property.key, tsPatternNode),
+    buildValidationEffect(property.key.name, property.key, tsParentNode),
     Effect.provide(tsServiceLayer)
   )
 
@@ -111,10 +126,19 @@ export const suggestMembersRule = createRule({
       context,
       esTreeNodeToTSNodeMap
     )
-    const validatePatternProperty = validateObjectPatternProperty(
+    const validatePatternProperty = validateObjectProperty(
       tsServiceLayer,
       context,
-      esTreeNodeToTSNodeMap
+      esTreeNodeToTSNodeMap,
+      AST_NODE_TYPES.ObjectPattern,
+      (propertyName, node, tsNode) => validateMemberPropertyNameEffect(propertyName, node, tsNode)
+    )
+    const validateLiteralProperty = validateObjectProperty(
+      tsServiceLayer,
+      context,
+      esTreeNodeToTSNodeMap,
+      AST_NODE_TYPES.ObjectExpression,
+      (propertyName, node, tsNode) => validateObjectLiteralPropertyNameEffect(propertyName, node, tsNode)
     )
 
     return {
@@ -123,6 +147,7 @@ export const suggestMembersRule = createRule({
       },
       Property(node: TSESTree.Property): void {
         validatePatternProperty(node)
+        validateLiteralProperty(node)
       }
     }
   }
