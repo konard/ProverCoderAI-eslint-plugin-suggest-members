@@ -1,13 +1,13 @@
 // CHANGE: module path utilities
 // WHY: normalize module specifiers for filesystem suggestions
 // QUOTE(TZ): n/a
-// REF: AGENTS.md SHELL
+// REF: AGENTS.md CORE
 // SOURCE: n/a
-// PURITY: SHELL
+// PURITY: CORE
 // EFFECT: n/a
 // INVARIANT: normalized paths use posix separators
 // COMPLEXITY: O(n)/O(1)
-import { SUPPORTED_EXTENSIONS } from "../../core/validation/candidates.js"
+import { SUPPORTED_EXTENSIONS } from "./candidates.js"
 
 export const MODULE_FILE_EXTENSIONS = SUPPORTED_EXTENSIONS
 

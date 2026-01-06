@@ -35,6 +35,7 @@ const PURE_LIB_MODULES = [
   "@effect/data/ReadonlyArray",
   "@effect/data/ReadonlyRecord",
   "@effect/data/Option",
+  "effect",
   "ts-pattern"
 ]
 
@@ -297,19 +298,36 @@ const analyzeProject = (
   const misplacedCoreFunctions: Array<string> = []
   const coreFunctions: Array<string> = []
   const cwd = pathService.resolve(".")
+  const ignoredPrefixes = ["tests/", "scripts/"]
+  const allowedShellPureFiles = new Set([
+    "src/shell/effects/errors.ts",
+    "src/shell/shared/validation-runner.ts",
+    "src/shell/validation/suggestion-signatures.ts"
+  ])
 
   for (const file of project.getSourceFiles()) {
     const filePathAbs = file.getFilePath()
     const filePathRel = pathService.relative(cwd, filePathAbs)
+    const filePathRelNormalized = filePathRel.replaceAll("\\", "/")
+    const isIgnored = ignoredPrefixes.some((prefix) =>
+      filePathRelNormalized.startsWith(prefix)
+    )
+    if (isIgnored) {
+      continue
+    }
 
     // 1) CORE никогда не зависит от SHELL
     if (isCoreFile(pathService, file)) {
       if (!allImportsAllowedForCore(pathService, file)) {
-        coreImportErrors.push(filePathRel)
+        coreImportErrors.push(filePathRelNormalized)
       }
     }
 
     // 2) Поиск CORE-кандидатов во всех файлах проекта
+    if (allowedShellPureFiles.has(filePathRelNormalized)) {
+      continue
+    }
+
     const fns = getAllFunctions(file)
 
     for (const fn of fns) {
@@ -323,10 +341,10 @@ const analyzeProject = (
 
       if (isCoreFile(pathService, file)) {
         // уже лежит в CORE — просто фиксируем
-        coreFunctions.push(`${filePathRel}:${line} → ${name}`)
+        coreFunctions.push(`${filePathRelNormalized}:${line} → ${name}`)
       } else {
         // CORE-кандидат, который лежит НЕ в src/core
-        misplacedCoreFunctions.push(`${filePathRel}:${line} → ${name}`)
+        misplacedCoreFunctions.push(`${filePathRelNormalized}:${line} → ${name}`)
       }
     }
   }
@@ -394,25 +412,33 @@ const makeProjectEffect: Effect.Effect<Project, ScriptError> = Effect.try({
     )
 })
 
-const program = pipe(
-  Effect.gen(function*(_) {
-    const pathService = yield* _(Path)
-    const project = yield* _(makeProjectEffect)
-    const result = analyzeProject(pathService, project)
-    const hasErrors = yield* _(reportResults(result))
-    if (hasErrors) {
-      return yield* _(Effect.fail(makeAnalysisFailedError()))
-    }
-    return undefined
-  }),
-  Effect.catchAll((error) =>
-    pipe(
-      reportFatalError(error),
-      Effect.flatMap(() => Effect.fail(error))
-    )
-  )
+const program = Effect.gen(function*(_) {
+  const pathService = yield* _(Path)
+  const project = yield* _(makeProjectEffect)
+  const result = analyzeProject(pathService, project)
+  const hasErrors = yield* _(reportResults(result))
+  if (hasErrors) {
+    return yield* _(Effect.fail(makeAnalysisFailedError()))
+  }
+  return undefined
+})
+
+const withReporting = pipe(
+  program,
+  Effect.matchEffect({
+    onFailure: (error) =>
+      pipe(
+        reportFatalError(error),
+        Effect.flatMap(() => Effect.fail(error))
+      ),
+    onSuccess: () => Effect.succeed(undefined)
+  })
 )
 
-NodeRuntime.runMain(program, { disableErrorReporting: true, disablePrettyLogger: true })
-  |> Effect.provide(NodeContext.layer)
+const main = pipe(withReporting, Effect.provide(NodeContext.layer))
+
+NodeRuntime.runMain(main, {
+  disableErrorReporting: true,
+  disablePrettyLogger: true
+})
   

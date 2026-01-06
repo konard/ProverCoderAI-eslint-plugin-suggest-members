@@ -12,7 +12,7 @@ import * as ts from "typescript"
 
 import type { TypeScriptServiceError } from "../effects/errors.js"
 import { makeModuleNotFoundError, makeTypeCheckerUnavailableError, makeTypeResolutionError } from "../effects/errors.js"
-import { getNodeBuiltinExports, isNodeBuiltinModule } from "./node-builtin-exports.js"
+import { getNodeBuiltinExports, isNodeBuiltinModule } from "../../core/validation/node-builtin-exports.js"
 import { findContextFile, findModuleSymbol } from "./typescript-compiler-helpers.js"
 import { createUndefinedResultEffect, formatTypeName, formatTypeSignature } from "./typescript-effect-utils.js"
 

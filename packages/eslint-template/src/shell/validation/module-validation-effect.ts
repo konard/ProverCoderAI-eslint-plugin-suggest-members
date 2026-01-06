@@ -25,8 +25,8 @@ import type { FilesystemError } from "../effects/errors.js"
 import { makeReadError } from "../effects/errors.js"
 import type { FilesystemService } from "../services/filesystem.js"
 import { FilesystemServiceTag } from "../services/filesystem.js"
-import { isNodeBuiltinModule } from "../services/node-builtin-exports.js"
-import { MODULE_FILE_EXTENSIONS, normalizeModuleSpecifier, stripKnownExtension } from "../shared/module-path-utils.js"
+import { isNodeBuiltinModule } from "../../core/validation/node-builtin-exports.js"
+import { MODULE_FILE_EXTENSIONS, normalizeModuleSpecifier, stripKnownExtension } from "../../core/validation/module-path-utils.js"
 
 const checkFileExistsWithExtensions = (
   fsService: {
