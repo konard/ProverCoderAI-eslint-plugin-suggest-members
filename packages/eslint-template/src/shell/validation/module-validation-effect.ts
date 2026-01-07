@@ -4,87 +4,84 @@
 // REF: AGENTS.md CORE↔SHELL
 // SOURCE: n/a
 // PURITY: SHELL
-// EFFECT: Effect<ModulePathValidationResult, FilesystemError, FilesystemServiceTag>
+// EFFECT: Effect<ModulePathValidationResult, FilesystemError>
 // INVARIANT: Valid | ModuleNotFound
 // COMPLEXITY: O(n log n)/O(n)
+import * as NodePath from "@effect/platform-node/NodePath"
+import * as Path from "@effect/platform/Path"
 import { Effect, Match, pipe } from "effect"
-
-import * as S from "@effect/schema/Schema"
 
 import type { ModulePathValidationResult, SuggestionWithScore } from "../../core/index.js"
 import {
   extractModuleName,
-  findSimilarCandidatesEffect,
   formatModuleMessage,
   isModulePath,
   isValidCandidate,
   makeModuleNotFoundResult,
   makeValidModuleResult
 } from "../../core/index.js"
-import type { FilesystemError } from "../effects/errors.js"
-import { makeReadError } from "../effects/errors.js"
-import type { FilesystemService } from "../services/filesystem.js"
-import { FilesystemServiceTag } from "../services/filesystem.js"
+import { findSimilarCandidates } from "../../core/suggestion/engine.js"
+import {
+  MODULE_FILE_EXTENSIONS,
+  normalizeModuleSpecifier,
+  stripKnownExtension
+} from "../../core/validation/module-path-utils.js"
 import { isNodeBuiltinModule } from "../../core/validation/node-builtin-exports.js"
-import { MODULE_FILE_EXTENSIONS, normalizeModuleSpecifier, stripKnownExtension } from "../../core/validation/module-path-utils.js"
+import type { FilesystemError } from "../effects/errors.js"
+import { FilesystemServiceTag } from "../services/filesystem.js"
+import type { ModulePathIndex } from "./module-path-index.js"
 
-const checkFileExistsWithExtensions = (
-  fsService: {
-    fileExists: (value: string) => Effect.Effect<boolean, FilesystemError>
-  },
-  pathGenerator: (ext: string) => string
-): Effect.Effect<boolean, FilesystemError> =>
-  Effect.gen(function*(_) {
-    for (const ext of MODULE_FILE_EXTENSIONS) {
-      const exists = yield* _(fsService.fileExists(pathGenerator(ext)))
-      if (exists) return true
-    }
-    return false
-  })
+const pathService = Effect.runSync(
+  Effect.provide(Effect.serviceOptional(Path.Path), NodePath.layer)
+)
 
-const checkPathWithExtensions = (
-  fsService: {
-    fileExists: (value: string) => Effect.Effect<boolean, FilesystemError>
-  },
-  basePath: string
-): Effect.Effect<boolean, FilesystemError> => checkFileExistsWithExtensions(fsService, (ext) => basePath + ext)
+const normalizePath = (value: string): string => value.replaceAll("\\", "/")
 
-const checkIndexFiles = (
-  fsService: Pick<FilesystemService, "fileExists" | "joinPath">,
-  dirPath: string
-): Effect.Effect<boolean, FilesystemError> =>
-  checkFileExistsWithExtensions(fsService, (ext) => fsService.joinPath(dirPath, `index${ext}`))
+const resolveRelativePath = (fromPath: string, modulePath: string): string => {
+  if (modulePath.startsWith("./") || modulePath.startsWith("../")) {
+    return normalizePath(pathService.resolve(pathService.dirname(fromPath), modulePath))
+  }
+  if (modulePath.startsWith("/") || modulePath.startsWith("node:")) {
+    return modulePath
+  }
+  return modulePath
+}
 
-const generateModuleSuggestions = (
-  fsService: Pick<
-    FilesystemService,
-    "readDirectory" | "dirname" | "joinPath" | "relativePath"
-  >,
+const buildModuleCandidates = (
+  index: ModulePathIndex,
   resolvedPath: string,
   requestedPath: string,
   containingFile: string
-): Effect.Effect<ReadonlyArray<SuggestionWithScore>, FilesystemError> =>
-  Effect.gen(function*(_) {
-    const targetDirectory = fsService.dirname(resolvedPath)
-    const containingDir = fsService.dirname(containingFile)
-    const normalizedRequested = requestedPath.replaceAll("\\", "/")
-    const files = yield* _(fsService.readDirectory(targetDirectory))
+): ReadonlyArray<SuggestionWithScore> => {
+  const targetDirectory = normalizePath(pathService.dirname(resolvedPath))
+  const containingDir = normalizePath(pathService.dirname(containingFile))
+  const normalizedRequested = normalizePath(requestedPath)
 
-    const moduleNames = files
-      .filter((file) => /\.(ts|tsx|js|jsx|json)$/.test(file))
-      .map((file) => {
-        const absoluteCandidate = fsService.joinPath(targetDirectory, file)
-        const withoutExtension = stripKnownExtension(absoluteCandidate)
-        return normalizeModuleSpecifier(fsService.relativePath, containingDir, withoutExtension)
-      })
+  const moduleNames = index.localFiles
+    .filter((file) => normalizePath(pathService.dirname(file)) === targetDirectory)
+    .map((file) => {
+      const withoutExtension = stripKnownExtension(file)
+      return normalizeModuleSpecifier(pathService.relative, containingDir, withoutExtension)
+    })
 
-    const uniqueCandidates = [...new Set(moduleNames)]
-    const validCandidates = uniqueCandidates.filter((candidate) =>
-      isValidModuleCandidate(candidate, normalizedRequested)
-    )
+  const uniqueCandidates = [...new Set(moduleNames)]
+  const validCandidates = uniqueCandidates.filter((candidate) => isValidModuleCandidate(candidate, normalizedRequested))
 
-    return yield* _(findSimilarCandidatesEffect(normalizedRequested, validCandidates))
-  })
+  return findSimilarCandidates(normalizedRequested, validCandidates)
+}
+
+const containsFile = (index: ModulePathIndex, filePath: string): boolean =>
+  index.localFileSet.has(normalizePath(filePath))
+
+const checkPathWithExtensionsInIndex = (
+  index: ModulePathIndex,
+  basePath: string
+): boolean => MODULE_FILE_EXTENSIONS.some((ext) => containsFile(index, basePath + ext))
+
+const checkIndexFilesInIndex = (
+  index: ModulePathIndex,
+  dirPath: string
+): boolean => MODULE_FILE_EXTENSIONS.some((ext) => containsFile(index, pathService.join(dirPath, `index${ext}`)))
 
 const isRelativeModuleSpecifier = (value: string): boolean =>
   value.startsWith("./") || value.startsWith("../") || value.startsWith("/")
@@ -94,204 +91,88 @@ const isNodeProtocolSpecifier = (value: string): boolean => value.startsWith("no
 const isPackageSpecifier = (value: string): boolean =>
   !isRelativeModuleSpecifier(value) && !isNodeProtocolSpecifier(value)
 
-const PackageJsonSchema = S.Struct({
-  dependencies: S.Record({ key: S.String, value: S.String }),
-  devDependencies: S.Record({ key: S.String, value: S.String }),
-  peerDependencies: S.Record({ key: S.String, value: S.String }),
-  optionalDependencies: S.Record({ key: S.String, value: S.String })
-}).pipe(S.partial)
-
-type PackageJson = S.Schema.Type<typeof PackageJsonSchema>
-
-const decodePackageJson = S.decodeUnknownSync(S.parseJson(PackageJsonSchema))
-
-const dependencySections: ReadonlyArray<keyof PackageJson> = [
-  "dependencies",
-  "devDependencies",
-  "peerDependencies",
-  "optionalDependencies"
-]
-
-const extractDependencyKeys = (
-  value: Readonly<Record<string, string>> | undefined
-): ReadonlyArray<string> => (value ? Object.keys(value) : [])
-
-const mergeUnique = (
-  chunks: ReadonlyArray<ReadonlyArray<string>>
-): ReadonlyArray<string> => {
-  const unique = new Set<string>()
-  for (const chunk of chunks) {
-    for (const name of chunk) {
-      if (name.length > 0) {
-        unique.add(name)
-      }
-    }
-  }
-  return [...unique]
-}
-
-const extractPackageNames = (value: PackageJson): ReadonlyArray<string> => {
-  const chunks = dependencySections.map((section) => extractDependencyKeys(value[section]))
-  return mergeUnique(chunks)
-}
-
-const parsePackageJsonEffect = (
-  filePath: string,
-  content: string
-): Effect.Effect<PackageJson, FilesystemError> =>
-  Effect.try({
-    try: (): PackageJson => decodePackageJson(content),
-    catch: (error) =>
-      makeReadError(
-        filePath,
-        error instanceof Error ? error.message : "package-json-parse-error"
-      )
-  })
-
-const findNearestPackageJsonEffect = (
-  fsService: Pick<FilesystemService, "fileExists" | "dirname" | "joinPath">,
-  containingFile: string
-): Effect.Effect<string | undefined, FilesystemError> =>
-  Effect.gen(function*(_) {
-    let currentDir = fsService.dirname(containingFile)
-    let parentDir = fsService.dirname(currentDir)
-    let found: string | undefined
-
-    while (currentDir !== parentDir && found === undefined) {
-      const candidate = fsService.joinPath(currentDir, "package.json")
-      const exists = yield* _(fsService.fileExists(candidate))
-      if (exists) {
-        found = candidate
-      } else {
-        currentDir = parentDir
-        parentDir = fsService.dirname(currentDir)
-      }
-    }
-    return found
-  })
-
-type PackageFsService = Pick<FilesystemService, "fileExists" | "readFile" | "dirname" | "joinPath">
-
-const getPackageCandidatesEffect = (
-  fsService: PackageFsService,
-  containingFile: string
-): Effect.Effect<ReadonlyArray<string>, FilesystemError> =>
-  Effect.gen(function*(_) {
-    const packageJsonPath = yield* _(findNearestPackageJsonEffect(fsService, containingFile))
-    if (!packageJsonPath) return []
-    const content = yield* _(fsService.readFile(packageJsonPath))
-    const parsed = yield* _(parsePackageJsonEffect(packageJsonPath, content))
-    return extractPackageNames(parsed)
-  })
-
-const validatePackageModulePathEffect = (
-  fsService: PackageFsService,
+const validatePackageModulePathWithIndex = (
+  index: ModulePathIndex,
   requestedPath: string,
-  containingFile: string,
   node: object
-): Effect.Effect<ModulePathValidationResult, FilesystemError> =>
-  Effect.gen(function*(_) {
-    const moduleName = extractModuleName(requestedPath)
-    if (moduleName.length === 0) return makeValidModuleResult()
-    if (isNodeBuiltinModule(moduleName)) return makeValidModuleResult()
+): ModulePathValidationResult => {
+  const moduleName = extractModuleName(requestedPath)
+  if (moduleName.length === 0) return makeValidModuleResult()
+  if (isNodeBuiltinModule(moduleName)) return makeValidModuleResult()
+  if (index.packageNameSet.has(moduleName)) return makeValidModuleResult()
 
-    const candidates = yield* _(getPackageCandidatesEffect(fsService, containingFile))
-    if (candidates.includes(moduleName)) return makeValidModuleResult()
+  const validCandidates = index.packageNames.filter((candidate) => isValidCandidate(candidate, moduleName))
+  const suggestions = findSimilarCandidates(moduleName, validCandidates)
 
-    const validCandidates = candidates.filter((candidate) => isValidCandidate(candidate, moduleName))
-    const suggestions = yield* _(findSimilarCandidatesEffect(moduleName, validCandidates))
+  if (suggestions.length === 0) {
+    return makeValidModuleResult()
+  }
 
-    if (suggestions.length === 0) {
-      return makeValidModuleResult()
-    }
+  return makeModuleNotFoundResult(requestedPath, suggestions, node, true)
+}
 
-    return makeModuleNotFoundResult(requestedPath, suggestions, node, true)
-  })
-
-const validateRelativeModulePathEffect = (
-  fsService: Pick<
-    FilesystemService,
-    "fileExists" | "readDirectory" | "resolveRelativePath" | "joinPath" | "dirname" | "relativePath"
-  >,
+const validateRelativeModulePathWithIndex = (
+  index: ModulePathIndex,
   node: object,
   requestedPath: string,
   containingFile: string
-): Effect.Effect<ModulePathValidationResult, FilesystemError> =>
-  Effect.gen(function*(_) {
-    const resolvedPath = yield* _(
-      fsService.resolveRelativePath(containingFile, requestedPath)
-    )
-    const resolvedWithoutExtension = stripKnownExtension(resolvedPath)
+): ModulePathValidationResult => {
+  const resolvedPath = resolveRelativePath(containingFile, requestedPath)
+  const resolvedWithoutExtension = stripKnownExtension(resolvedPath)
 
-    const pathExists = yield* _(fsService.fileExists(resolvedPath))
-    if (pathExists) return makeValidModuleResult()
+  if (containsFile(index, resolvedPath)) return makeValidModuleResult()
+  if (checkPathWithExtensionsInIndex(index, resolvedWithoutExtension)) return makeValidModuleResult()
+  if (checkIndexFilesInIndex(index, resolvedWithoutExtension)) return makeValidModuleResult()
 
-    const existsWithExt = yield* _(
-      checkPathWithExtensions(fsService, resolvedWithoutExtension)
-    )
-    if (existsWithExt) return makeValidModuleResult()
+  const suggestions = buildModuleCandidates(index, resolvedPath, requestedPath, containingFile)
 
-    const hasIndexFiles = yield* _(
-      checkIndexFiles(fsService, resolvedWithoutExtension)
-    )
-    if (hasIndexFiles) return makeValidModuleResult()
+  if (suggestions.length === 0) {
+    return makeValidModuleResult()
+  }
 
-    const suggestions = yield* _(
-      generateModuleSuggestions(fsService, resolvedPath, requestedPath, containingFile)
-    )
+  return makeModuleNotFoundResult(requestedPath, suggestions, node)
+}
 
-    if (suggestions.length === 0) {
-      return makeValidModuleResult()
-    }
+const validateModulePathWithIndex = (
+  index: ModulePathIndex,
+  node: object,
+  requestedPath: string,
+  containingFile: string
+): ModulePathValidationResult => {
+  if (!isModulePath(requestedPath)) {
+    return makeValidModuleResult()
+  }
 
-    return makeModuleNotFoundResult(requestedPath, suggestions, node)
-  })
+  if (isNodeProtocolSpecifier(requestedPath)) {
+    return makeValidModuleResult()
+  }
+
+  if (isNodeBuiltinModule(requestedPath)) {
+    return makeValidModuleResult()
+  }
+
+  if (isPackageSpecifier(requestedPath)) {
+    return validatePackageModulePathWithIndex(index, requestedPath, node)
+  }
+
+  return validateRelativeModulePathWithIndex(index, node, requestedPath, containingFile)
+}
 
 export const validateModulePathEffect = (
   node: object,
   requestedPath: string,
-  containingFile: string
-): Effect.Effect<
-  ModulePathValidationResult,
-  FilesystemError,
-  FilesystemServiceTag
-> =>
-  pipe(
-    Effect.gen(function*(_) {
-      if (!isModulePath(requestedPath)) {
-        return makeValidModuleResult()
-      }
-
-      const fsService = yield* _(FilesystemServiceTag)
-
-      if (isNodeProtocolSpecifier(requestedPath)) {
-        return makeValidModuleResult()
-      }
-
-      if (isNodeBuiltinModule(requestedPath)) {
-        return makeValidModuleResult()
-      }
-
-      if (isPackageSpecifier(requestedPath)) {
-        return yield* _(
-          validatePackageModulePathEffect(
-            fsService,
-            requestedPath,
-            containingFile,
-            node
-          )
-        )
-      }
-
-      return yield* _(
-        validateRelativeModulePathEffect(
-          fsService,
-          node,
-          requestedPath,
-          containingFile
-        )
+  containingFile: string,
+  moduleIndex?: ModulePathIndex
+): Effect.Effect<ModulePathValidationResult, FilesystemError> =>
+  Effect.succeed(
+    moduleIndex
+      ? validateModulePathWithIndex(
+        moduleIndex,
+        node,
+        requestedPath,
+        containingFile
       )
-    })
+      : makeValidModuleResult()
   )
 
 export const modulePathExistsEffect = (

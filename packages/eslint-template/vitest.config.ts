@@ -7,13 +7,14 @@
 // EFFECT: Effect<TestReport, never, TestEnvironment>
 // COMPLEXITY: O(n) test execution where n = |test_files|
 
-import path from "node:path"
-import { fileURLToPath } from "node:url"
 import tsconfigPaths from "vite-tsconfig-paths"
 import { defineConfig } from "vitest/config"
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const baseUrl = new URL(".", import.meta.url)
+const normalizePath = (value: string): string =>
+  value.startsWith("/") && value.includes(":") ? value.slice(1) : value
+const resolvePath = (relative: string): string =>
+  normalizePath(decodeURIComponent(new URL(relative, baseUrl).pathname))
 
 export default defineConfig({
   plugins: [tsconfigPaths()], // Resolves @/* paths from tsconfig
@@ -79,7 +80,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src")
+      "@": resolvePath("src")
     }
   }
 })

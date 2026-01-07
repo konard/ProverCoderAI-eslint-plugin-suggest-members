@@ -26,10 +26,6 @@ import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 
 const CORE_DIR = "src/core"
 
-// Можно оставить, если хочешь потом использовать для других проверок,
-// но для поиска CORE-кандидатов мы их больше не используем.
-const SHELL_DIRS = ["src/app", "src/infra", "src/ui"]
-
 const PURE_LIB_MODULES = [
   "@effect/schema/Schema",
   "@effect/data/ReadonlyArray",
@@ -37,6 +33,32 @@ const PURE_LIB_MODULES = [
   "@effect/data/Option",
   "effect",
   "ts-pattern"
+]
+
+const BANNED_MODULE_SPECIFIERS = [
+  "fs",
+  "fs/promises",
+  "path",
+  "path/posix",
+  "path/win32",
+  "os",
+  "crypto",
+  "url",
+  "util",
+  "events",
+  "stream",
+  "buffer",
+  "http",
+  "https",
+  "zlib",
+  "net",
+  "tls",
+  "dns",
+  "child_process",
+  "process",
+  "module",
+  "worker_threads",
+  "readline"
 ]
 
 const BANNED_IDENTIFIERS = [
@@ -88,14 +110,6 @@ const isInDir = (
 
 const isCoreFile = (pathService: Path, file: SourceFile): boolean =>
   isInDir(pathService, file, CORE_DIR)
-
-// пока не используем, но пусть будет — вдруг пригодится
-const isShellFile = (pathService: Path, file: SourceFile): boolean => {
-  const filePath = pathService.normalize(file.getFilePath())
-  return SHELL_DIRS.some((dir) =>
-    filePath.startsWith(pathService.resolve(dir) + pathService.sep)
-  )
-}
 
 const allImportsAllowedForCore = (
   pathService: Path,
@@ -285,15 +299,25 @@ const isCoreCandidateFunction = (
 // === АНАЛИЗ ===
 
 interface AnalysisResult {
+  readonly nodeImportErrors: ReadonlyArray<string>
   readonly coreImportErrors: ReadonlyArray<string>
   readonly misplacedCoreFunctions: ReadonlyArray<string>
   readonly coreFunctions: ReadonlyArray<string>
+}
+
+const isNodeImport = (specifier: string): boolean => {
+  if (specifier.startsWith("node:")) return true
+  if (BANNED_MODULE_SPECIFIERS.includes(specifier)) return true
+  if (specifier.startsWith("fs/")) return true
+  if (specifier.startsWith("path/")) return true
+  return false
 }
 
 const analyzeProject = (
   pathService: Path,
   project: Project
 ): AnalysisResult => {
+  const nodeImportErrors: Array<string> = []
   const coreImportErrors: Array<string> = []
   const misplacedCoreFunctions: Array<string> = []
   const coreFunctions: Array<string> = []
@@ -302,6 +326,7 @@ const analyzeProject = (
   const allowedShellPureFiles = new Set([
     "src/shell/effects/errors.ts",
     "src/shell/shared/validation-runner.ts",
+    "src/shell/shared/effect-utils.ts",
     "src/shell/validation/suggestion-signatures.ts"
   ])
 
@@ -314,6 +339,17 @@ const analyzeProject = (
     )
     if (isIgnored) {
       continue
+    }
+
+    const nodeImports = file
+      .getImportDeclarations()
+      .map((imp) => imp.getModuleSpecifierValue())
+      .filter(isNodeImport)
+
+    if (nodeImports.length > 0) {
+      for (const specifier of nodeImports) {
+        nodeImportErrors.push(`${filePathRelNormalized} → ${specifier}`)
+      }
     }
 
     // 1) CORE никогда не зависит от SHELL
@@ -349,7 +385,7 @@ const analyzeProject = (
     }
   }
 
-  return { coreImportErrors, misplacedCoreFunctions, coreFunctions }
+  return { nodeImportErrors, coreImportErrors, misplacedCoreFunctions, coreFunctions }
 }
 
 // === ОТЧЁТ ===
@@ -357,6 +393,14 @@ const analyzeProject = (
 const reportResults = (result: AnalysisResult): Effect.Effect<boolean> =>
   Effect.gen(function*(_) {
     let hasErrors = false
+
+    if (result.nodeImportErrors.length > 0) {
+      hasErrors = true
+      yield* _(Console.error("❌ Node.js imports are forbidden:"))
+      for (const entry of result.nodeImportErrors) {
+        yield* _(Console.error(`  - ${entry}`))
+      }
+    }
 
     if (result.coreImportErrors.length > 0) {
       hasErrors = true

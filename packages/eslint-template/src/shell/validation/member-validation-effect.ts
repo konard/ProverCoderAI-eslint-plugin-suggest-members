@@ -23,6 +23,7 @@ import type { SuggestionWithScore } from "../../core/types/domain.js"
 import type { BaseESLintNode } from "../../core/types/eslint-nodes.js"
 import type { TypeScriptServiceError } from "../effects/errors.js"
 import { type TypeScriptCompilerService, TypeScriptCompilerServiceTag } from "../services/typescript-compiler.js"
+import { ignoreErrorToUndefined } from "../shared/effect-utils.js"
 import { enrichSuggestionsWithSymbolMapEffect } from "./suggestion-signatures.js"
 
 type MemberMetadataService = Pick<
@@ -86,13 +87,7 @@ const collectPropertyMetadataForType = (
 ): Effect.Effect<PropertyMetadata, TypeScriptServiceError> =>
   Effect.gen(function*(_) {
     const typeName = yield* _(
-      pipe(
-        tsService.getTypeName(objectType, tsNode),
-        Effect.matchEffect({
-          onFailure: () => Effect.succeed(undefined),
-          onSuccess: (value) => Effect.succeed(value)
-        })
-      )
+      ignoreErrorToUndefined(tsService.getTypeName(objectType, tsNode))
     )
     const properties = yield* _(collectUnionPropertiesEffect(objectType, tsService))
 

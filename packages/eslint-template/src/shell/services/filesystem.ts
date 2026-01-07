@@ -7,10 +7,11 @@
 // EFFECT: Effect<Success, FilesystemError>
 // INVARIANT: errors are typed
 // COMPLEXITY: O(1)/O(n)
-import * as FileSystem from "@effect/platform/FileSystem"
-import * as Path from "@effect/platform/Path"
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
 import * as NodePath from "@effect/platform-node/NodePath"
+import type { PlatformError } from "@effect/platform/Error"
+import * as FileSystem from "@effect/platform/FileSystem"
+import * as Path from "@effect/platform/Path"
 import { Context, Effect, Layer, pipe } from "effect"
 
 import type { FilesystemError } from "../effects/errors.js"
@@ -41,8 +42,7 @@ export class FilesystemServiceTag extends Context.Tag("FilesystemService")<
   FilesystemService
 >() {}
 
-const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
+const errorMessage = (error: PlatformError): string => error.message
 
 const createFileExistsEffect = (
   fsService: FileSystem.FileSystem

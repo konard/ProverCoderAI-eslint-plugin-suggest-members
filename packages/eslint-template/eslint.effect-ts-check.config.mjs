@@ -147,7 +147,15 @@ export default tseslint.config(
     },
     rules: {
       "no-console": "error",
-      "no-restricted-imports": ["error", { paths: restrictedImports }],
+      "no-restricted-imports": ["error", {
+        paths: restrictedImports,
+        patterns: [
+          {
+            group: ["node:*"],
+            message: "Do not import from node:* directly. Use @effect/platform-node or @effect/platform services."
+          }
+        ]
+      }],
       "no-restricted-syntax": ["error", ...restrictedSyntaxBase],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/ban-ts-comment": ["error", {

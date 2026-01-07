@@ -10,11 +10,11 @@
 import type { TSESTree } from "@typescript-eslint/utils"
 import { AST_NODE_TYPES, ESLintUtils } from "@typescript-eslint/utils"
 import type { RuleContext } from "@typescript-eslint/utils/ts-eslint"
-import { Effect, type Layer, pipe } from "effect"
 
 import { isModulePath } from "../../core/validators/index.js"
-import { type FilesystemServiceTag, makeFilesystemServiceLayer } from "../../shell/services/filesystem.js"
+import { getParserServicesForContext } from "../../shell/shared/import-validation-base.js"
 import { runValidationEffect } from "../../shell/shared/validation-runner.js"
+import { buildModulePathIndex } from "../../shell/validation/module-path-index.js"
 import {
   formatModulePathValidationMessage,
   validateModulePathEffect
@@ -25,16 +25,19 @@ const createRule = ESLintUtils.RuleCreator((name) =>
 )
 
 const createValidateAndReport = (
-  fsServiceLayer: Layer.Layer<FilesystemServiceTag>,
   currentFilePath: string,
-  context: RuleContext<"suggestModulePaths", []>
+  context: RuleContext<"suggestModulePaths", []>,
+  moduleIndex: ReturnType<typeof buildModulePathIndex> | null
 ) =>
 (node: object, reportNode: TSESTree.Node, modulePath: string): void => {
   if (!isModulePath(modulePath)) return
+  if (!moduleIndex) return
 
-  const validationEffect = pipe(
-    validateModulePathEffect(node, modulePath, currentFilePath),
-    Effect.provide(fsServiceLayer)
+  const validationEffect = validateModulePathEffect(
+    node,
+    modulePath,
+    currentFilePath,
+    moduleIndex
   )
 
   runValidationEffect({
@@ -60,12 +63,15 @@ export const suggestModulePathsRule = createRule({
   },
   defaultOptions: [],
   create(context) {
-    const fsServiceLayer = makeFilesystemServiceLayer()
     const currentFilePath = context.filename
+    const parseResult = getParserServicesForContext(context)
+    const moduleIndex = parseResult?.program
+      ? buildModulePathIndex(parseResult.program)
+      : null
     const validateAndReport = createValidateAndReport(
-      fsServiceLayer,
       currentFilePath,
-      context
+      context,
+      moduleIndex
     )
 
     return {

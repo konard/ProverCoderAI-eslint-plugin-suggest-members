@@ -15,6 +15,7 @@ import type { BaseESLintNode } from "../../core/types/eslint-nodes.js"
 import type { TypeScriptServiceError } from "../effects/errors.js"
 import type { TypeScriptCompilerService } from "../services/typescript-compiler.js"
 import { TypeScriptCompilerServiceTag } from "../services/typescript-compiler.js"
+import { ignoreErrorToUndefined } from "../shared/effect-utils.js"
 import { enrichSuggestionsWithSignaturesEffect } from "./suggestion-signatures.js"
 
 export interface BaseValidationConfig<TResult> {
@@ -79,13 +80,7 @@ const resolveModuleTypeNameEffect = (
   modulePath: string,
   containingFilePath: string
 ): Effect.Effect<string | undefined, TypeScriptServiceError> =>
-  pipe(
-    tsService.getModuleTypeName(modulePath, containingFilePath),
-    Effect.matchEffect({
-      onFailure: () => Effect.succeed(undefined),
-      onSuccess: (value) => Effect.succeed(value)
-    })
-  )
+  ignoreErrorToUndefined(tsService.getModuleTypeName(modulePath, containingFilePath))
 
 const createInvalidParams = <TResult>(
   base: Omit<InvalidResultEffectParams<TResult>, "typeName">,

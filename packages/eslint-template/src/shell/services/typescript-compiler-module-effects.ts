@@ -10,9 +10,10 @@
 import { Effect, pipe } from "effect"
 import * as ts from "typescript"
 
+import { getNodeBuiltinExports, isNodeBuiltinModule } from "../../core/validation/node-builtin-exports.js"
 import type { TypeScriptServiceError } from "../effects/errors.js"
 import { makeModuleNotFoundError, makeTypeCheckerUnavailableError, makeTypeResolutionError } from "../effects/errors.js"
-import { getNodeBuiltinExports, isNodeBuiltinModule } from "../../core/validation/node-builtin-exports.js"
+import { ignoreErrorToUndefined } from "../shared/effect-utils.js"
 import { findContextFile, findModuleSymbol } from "./typescript-compiler-helpers.js"
 import { createUndefinedResultEffect, formatTypeName, formatTypeSignature } from "./typescript-effect-utils.js"
 
@@ -122,10 +123,7 @@ const createModuleLookupEffect = <T, TParams extends ModuleLookupParams>(
         params.containingFilePath
       ),
       Effect.flatMap(({ contextFile, moduleSymbol }) => build(checker, moduleSymbol, contextFile, params)),
-      Effect.matchEffect({
-        onFailure: () => Effect.succeed(undefined),
-        onSuccess: (value) => Effect.succeed(value)
-      })
+      ignoreErrorToUndefined
     )
 }
 
