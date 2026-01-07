@@ -24,24 +24,6 @@ const normalizePath = (value: string): string => value.replaceAll("\\", "/")
 
 const isSupportedFile = (filePath: string): boolean => SUPPORTED_EXTENSIONS.some((ext) => filePath.endsWith(ext))
 
-const extractPackageNameFromNodeModules = (
-  filePath: string
-): string | null => {
-  const marker = "/node_modules/"
-  const markerIndex = filePath.lastIndexOf(marker)
-  if (markerIndex === -1) return null
-
-  const remainder = filePath.slice(markerIndex + marker.length)
-  if (remainder.startsWith("@")) {
-    const [scope, name] = remainder.split("/")
-    if (scope && name) return `${scope}/${name}`
-    return null
-  }
-
-  const [name] = remainder.split("/")
-  return name && name.length > 0 ? name : null
-}
-
 const PackageJsonSchema = S.Struct({
   dependencies: S.Record({ key: S.String, value: S.String }),
   devDependencies: S.Record({ key: S.String, value: S.String }),
@@ -123,17 +105,16 @@ const readPackageNamesFromNearest = (
   return parsed ? extractPackageNames(parsed) : []
 }
 
+const moduleIndexCache = new WeakMap<ts.Program, ModulePathIndex>()
+
 export const buildModulePathIndex = (program: ts.Program): ModulePathIndex => {
   const localFiles: Array<string> = []
   const packageNames = new Set<string>()
 
   for (const sourceFile of program.getSourceFiles()) {
+    if (sourceFile.isDeclarationFile) continue
     const normalized = normalizePath(sourceFile.fileName)
-    const packageName = extractPackageNameFromNodeModules(normalized)
-    if (packageName) {
-      packageNames.add(packageName)
-      continue
-    }
+    if (normalized.includes("/node_modules/")) continue
 
     if (isSupportedFile(normalized)) {
       localFiles.push(normalized)
@@ -152,4 +133,12 @@ export const buildModulePathIndex = (program: ts.Program): ModulePathIndex => {
     packageNames: [...packageNames],
     packageNameSet: new Set(packageNames)
   }
+}
+
+export const getModulePathIndex = (program: ts.Program): ModulePathIndex => {
+  const cached = moduleIndexCache.get(program)
+  if (cached) return cached
+  const computed = buildModulePathIndex(program)
+  moduleIndexCache.set(program, computed)
+  return computed
 }

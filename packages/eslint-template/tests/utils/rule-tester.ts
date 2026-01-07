@@ -32,3 +32,10 @@ export const createRuleTester = () =>
 
 export const resolveFixturePath = (relativePath: string): string =>
   path.join(tsconfigRootDir, "tests", "fixtures", relativePath)
+
+const normalizePath = (value: string): string => value.replaceAll("\\", "/")
+
+const stripExtension = (value: string): string => value.replace(/\.[^/.]+$/, "")
+
+export const resolveFixtureImportPath = (relativePath: string): string =>
+  stripExtension(normalizePath(resolveFixturePath(relativePath)))

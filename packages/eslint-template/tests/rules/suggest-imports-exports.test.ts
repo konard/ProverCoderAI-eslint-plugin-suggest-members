@@ -1,6 +1,6 @@
 import { suggestExportsRule } from "../../src/rules/suggest-exports/index.js"
 import { suggestImportsRule } from "../../src/rules/suggest-imports/index.js"
-import { createRuleTester, resolveFixturePath } from "../utils/rule-tester.js"
+import { createRuleTester, resolveFixtureImportPath, resolveFixturePath } from "../utils/rule-tester.js"
 
 const ruleTester = createRuleTester()
 const filename = resolveFixturePath("consumer.ts")
@@ -16,8 +16,10 @@ const invalidImportCode = `
   useStae()
 `
 
+const exportsModulePath = resolveFixtureImportPath("modules/exports.ts")
+
 const invalidImportMessage =
-  "Export 'useStae' does not exist on type 'typeof import(\"/home/user/eslint-plugin-suggest-members/packages/eslint-template/tests/fixtures/modules/exports\")'. Did you mean:\n" +
+  `Export 'useStae' does not exist on type 'typeof import("${exportsModulePath}")'. Did you mean:\n` +
   "  - useState(): number\n" +
   "  - useMemo(): number\n" +
   "  - useEffect(): void\n" +

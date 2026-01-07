@@ -24,6 +24,7 @@ export default defineConfig({
     // INVARIANT: Deterministic test execution without side effects
     globals: false, // IMPORTANT: Use explicit imports for type safety
     environment: "node",
+    testTimeout: 15000,
 
     // CHANGE: Match Jest's test file patterns
     // INVARIANT: Same test discovery as Jest

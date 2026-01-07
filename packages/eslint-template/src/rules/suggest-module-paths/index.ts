@@ -14,7 +14,8 @@ import type { RuleContext } from "@typescript-eslint/utils/ts-eslint"
 import { isModulePath } from "../../core/validators/index.js"
 import { getParserServicesForContext } from "../../shell/shared/import-validation-base.js"
 import { runValidationEffect } from "../../shell/shared/validation-runner.js"
-import { buildModulePathIndex } from "../../shell/validation/module-path-index.js"
+import type { ModulePathIndex } from "../../shell/validation/module-path-index.js"
+import { getModulePathIndex } from "../../shell/validation/module-path-index.js"
 import {
   formatModulePathValidationMessage,
   validateModulePathEffect
@@ -27,7 +28,7 @@ const createRule = ESLintUtils.RuleCreator((name) =>
 const createValidateAndReport = (
   currentFilePath: string,
   context: RuleContext<"suggestModulePaths", []>,
-  moduleIndex: ReturnType<typeof buildModulePathIndex> | null
+  moduleIndex: ModulePathIndex | undefined
 ) =>
 (node: object, reportNode: TSESTree.Node, modulePath: string): void => {
   if (!isModulePath(modulePath)) return
@@ -66,8 +67,8 @@ export const suggestModulePathsRule = createRule({
     const currentFilePath = context.filename
     const parseResult = getParserServicesForContext(context)
     const moduleIndex = parseResult?.program
-      ? buildModulePathIndex(parseResult.program)
-      : null
+      ? getModulePathIndex(parseResult.program)
+      : undefined
     const validateAndReport = createValidateAndReport(
       currentFilePath,
       context,
