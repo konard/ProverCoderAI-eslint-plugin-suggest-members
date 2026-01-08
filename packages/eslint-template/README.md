@@ -1,4 +1,4 @@
-# `@effect-template/eslint-plugin-suggest-members`
+# `@prover-coder-ai/eslint-plugin-suggest-members`
 
 Production‑ready ESLint plugin that suggests corrections for typos in TypeScript/JavaScript code. Built with Functional Core / Imperative Shell and Effect‑TS.
 
@@ -13,7 +13,7 @@ Production‑ready ESLint plugin that suggests corrections for typos in TypeScri
 
 ```js
 // eslint.config.js
-import suggestMembers from "@effect-template/eslint-plugin-suggest-members"
+import suggestMembers from "@prover-coder-ai/eslint-plugin-suggest-members"
 
 export default [
   {
@@ -100,5 +100,5 @@ formatGreeting()
 ## Development
 
 ```sh
-pnpm --filter @effect-template/eslint-template test
+pnpm --filter @prover-coder-ai/eslint-plugin-suggest-members test
 ```

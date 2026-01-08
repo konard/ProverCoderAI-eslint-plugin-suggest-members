@@ -8,5 +8,5 @@
 // EFFECT: n/a
 // INVARIANT: name != "" ∧ version != ""
 // COMPLEXITY: O(1)/O(1)
-export const name = "@effect-template/eslint-plugin-suggest-members"
+export const name = "@prover-coder-ai/eslint-plugin-suggest-members"
 export const version = "0.0.0"

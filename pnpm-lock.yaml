@@ -63,9 +63,6 @@ importers:
       '@biomejs/biome':
         specifier: ^2.3.10
         version: 2.3.10
-      '@effect-template/eslint-template':
-        specifier: workspace:*
-        version: link:../eslint-template
       '@effect/eslint-plugin':
         specifier: ^0.3.2
         version: 0.3.2
@@ -87,6 +84,9 @@ importers:
       '@eslint/js':
         specifier: 9.39.2
         version: 9.39.2
+      '@prover-coder-ai/eslint-plugin-suggest-members':
+        specifier: workspace:*
+        version: link:../eslint-template
       '@ton-ai-core/eslint-plugin-suggest-members':
         specifier: ^1.6.17
         version: 1.6.17(@typescript-eslint/parser@8.50.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)

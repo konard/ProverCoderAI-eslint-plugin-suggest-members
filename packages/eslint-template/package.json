@@ -73,7 +73,7 @@
     "test": "pnpm run lint:tests && vitest run",
     "typecheck": "tsc --noEmit"
   },
-  "name": "@effect-template/eslint-template",
+  "name": "@prover-coder-ai/eslint-plugin-suggest-members",
   "type": "module",
   "version": "0.0.0"
 }
