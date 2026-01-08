@@ -46,13 +46,13 @@ jobs:
           CHANGED_FILES="$(git diff --name-only "$BASE_SHA" "${{ github.sha }}" || true)"
           if echo "$CHANGED_FILES" | grep -q '^packages/eslint-template/'; then
             CHANGESET_FILE=".changeset/auto-${{ github.sha }}.md"
-            cat > "$CHANGESET_FILE" <<'EOF'
----
-"@prover-coder-ai/eslint-plugin-suggest-members": patch
----
-
-chore: automated version bump
-EOF
+            printf '%s\n' \
+              '---' \
+              '"@prover-coder-ai/eslint-plugin-suggest-members": patch' \
+              '---' \
+              '' \
+              'chore: automated version bump' \
+              > "$CHANGESET_FILE"
             echo "has_changeset=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_changeset=false" >> "$GITHUB_OUTPUT"
