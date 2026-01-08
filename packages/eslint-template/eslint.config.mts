@@ -4,7 +4,7 @@ import eslint from '@eslint/js';
 import eslintPlugin from "eslint-plugin-eslint-plugin";
 import tseslint from 'typescript-eslint';
 import vitest from "eslint-plugin-vitest";
-import suggestMembers from "@prover-coder-ai/eslint-plugin-suggest-members";
+import suggestMembers from "@prover-coder-ai/eslint-plugin-suggest-members-aliased";
 import sonarjs from "eslint-plugin-sonarjs";
 import unicorn from "eslint-plugin-unicorn";
 import * as effectEslint from "@effect/eslint-plugin";
@@ -19,6 +19,7 @@ import eslintCommentsConfigs from "@eslint-community/eslint-plugin-eslint-commen
 const codegenPlugin = fixupPluginRules(
 	codegen as unknown as Parameters<typeof fixupPluginRules>[0],
 );
+const suggestMembersRecommended = suggestMembers.configs["recommended"];
 export default tseslint.config(
   { ignores: ["lib"] },
   eslint.configs.recommended,
@@ -27,7 +28,7 @@ export default tseslint.config(
   tseslint.configs.strictTypeChecked,
   effectEslint.configs.dprint,
   eslintCommentsConfigs.recommended,
-  suggestMembers.configs.recommended,
+  ...(suggestMembersRecommended ? [suggestMembersRecommended] : []),
   {
     name: "analyzers",
     languageOptions: {

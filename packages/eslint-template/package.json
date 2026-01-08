@@ -27,6 +27,7 @@
     "@eslint/compat": "2.0.0",
     "@eslint/eslintrc": "3.3.3",
     "@eslint/js": "9.39.2",
+    "@prover-coder-ai/eslint-plugin-suggest-members-aliased": "npm:@prover-coder-ai/eslint-plugin-suggest-members@latest",
     "@ton-ai-core/vibecode-linter": "^1.0.6",
     "@types/node": "^25.0.3",
     "@typescript-eslint/eslint-plugin": "^8.50.1",
@@ -58,6 +59,10 @@
       "default": "./lib/index.js"
     }
   },
+  "files": [
+    "lib",
+    "README.md"
+  ],
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "scripts": {
@@ -67,6 +72,7 @@
     "lint": "npx @ton-ai-core/vibecode-linter src/",
     "lint:tests": "npx @ton-ai-core/vibecode-linter tests/",
     "check": "pnpm run typecheck",
+    "prepack": "pnpm run build",
     "prestart": "pnpm run build",
     "start": "node lib/index.js",
     "test": "pnpm run lint:tests && vitest run",
