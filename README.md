@@ -82,11 +82,11 @@ formatGreeting()
 
 | Name | Description | TS Required |
 | --- | --- | --- |
-| [suggest-exports](docs/rules/suggest-exports.md) | Suggests corrections for missing exports | ✅ |
-| [suggest-imports](docs/rules/suggest-imports.md) | Suggests corrections for missing imports | ✅ |
-| [suggest-members](docs/rules/suggest-members.md) | Suggests corrections for missing members | ✅ |
-| [suggest-missing-names](docs/rules/suggest-missing-names.md) | Suggests corrections for unresolved identifiers | ✅ |
-| [suggest-module-paths](docs/rules/suggest-module-paths.md) | Suggests corrections for missing module paths | ❌ |
+| [suggest-exports](packages/eslint-template/docs/rules/suggest-exports.md) | Suggests corrections for missing exports | ✅ |
+| [suggest-imports](packages/eslint-template/docs/rules/suggest-imports.md) | Suggests corrections for missing imports | ✅ |
+| [suggest-members](packages/eslint-template/docs/rules/suggest-members.md) | Suggests corrections for missing members | ✅ |
+| [suggest-missing-names](packages/eslint-template/docs/rules/suggest-missing-names.md) | Suggests corrections for unresolved identifiers | ✅ |
+| [suggest-module-paths](packages/eslint-template/docs/rules/suggest-module-paths.md) | Suggests corrections for missing module paths | ❌ |
 
 ## Development
 
