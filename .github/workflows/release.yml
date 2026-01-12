@@ -48,6 +48,9 @@ jobs:
         run: pnpm changeset version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Sync plugin meta
+        if: steps.auto_changeset.outputs.has_changeset == 'true' && github.actor != 'github-actions[bot]'
+        run: pnpm --filter @prover-coder-ai/eslint-plugin-suggest-members run sync-plugin-meta
       - name: Commit version changes
         if: steps.auto_changeset.outputs.has_changeset == 'true' && github.actor != 'github-actions[bot]'
         shell: bash

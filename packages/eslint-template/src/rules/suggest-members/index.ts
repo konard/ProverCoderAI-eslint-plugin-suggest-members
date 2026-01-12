@@ -8,7 +8,7 @@
 // INVARIANT: only reports when suggestions exist
 // COMPLEXITY: O(n log n)/O(n)
 import type { TSESTree } from "@typescript-eslint/utils"
-import { AST_NODE_TYPES, ESLintUtils } from "@typescript-eslint/utils"
+import { AST_NODE_TYPES } from "@typescript-eslint/utils"
 import type { RuleContext } from "@typescript-eslint/utils/ts-eslint"
 import type { Layer } from "effect"
 import { Effect, pipe } from "effect"
@@ -20,6 +20,7 @@ import {
   makeTypeScriptCompilerServiceLayer,
   type TypeScriptCompilerServiceTag
 } from "../../shell/services/typescript-compiler.js"
+import { getParserServicesForContext } from "../../shell/shared/import-validation-base.js"
 import { createRule } from "../../shell/shared/rule-creator.js"
 import { runValidationEffect } from "../../shell/shared/validation-runner.js"
 import {
@@ -107,8 +108,10 @@ export const suggestMembersRule = createRule(
     messageId: "suggestMembers"
   },
   (context) => {
-    const parserServices = ESLintUtils.getParserServices(context)
+    const parserServices = getParserServicesForContext(context)
+    if (!parserServices) return {}
     const program = parserServices.program
+    if (!program) return {}
     const checker = program.getTypeChecker()
     const esTreeNodeToTSNodeMap = parserServices.esTreeNodeToTSNodeMap
 

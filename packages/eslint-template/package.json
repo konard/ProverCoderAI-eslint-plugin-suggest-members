@@ -67,7 +67,8 @@
   "types": "lib/index.d.ts",
   "scripts": {
     "docs": "eslint-doc-generator",
-    "build": "tsc -p tsconfig.build.json",
+    "sync-plugin-meta": "node scripts/sync-plugin-meta.mjs",
+    "build": "pnpm run sync-plugin-meta && tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
     "lint": "npx @ton-ai-core/vibecode-linter src/",
     "lint:tests": "npx @ton-ai-core/vibecode-linter tests/",
