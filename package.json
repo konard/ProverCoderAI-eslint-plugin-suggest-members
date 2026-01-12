@@ -25,12 +25,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ProverCoderAI/effect-template.git"
+    "url": "git+https://github.com/ProverCoderAI/eslint-plugin-suggest-members.git"
   },
   "bugs": {
-    "url": "https://github.com/ProverCoderAI/effect-template/issues"
+    "url": "https://github.com/ProverCoderAI/eslint-plugin-suggest-members/issues"
   },
-  "homepage": "https://github.com/ProverCoderAI/effect-template#readme",
+  "homepage": "https://github.com/ProverCoderAI/eslint-plugin-suggest-members#readme",
   "license": "ISC",
   "pnpm": {
     "ignoredBuiltDependencies": [
