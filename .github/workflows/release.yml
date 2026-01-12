@@ -17,6 +17,7 @@ jobs:
       contents: write
       id-token: write
       pull-requests: write
+      packages: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,6 +52,14 @@ jobs:
       - name: Sync plugin meta
         if: steps.auto_changeset.outputs.has_changeset == 'true' && github.actor != 'github-actions[bot]'
         run: pnpm --filter @prover-coder-ai/eslint-plugin-suggest-members run sync-plugin-meta
+      - name: Read version
+        id: release_version
+        if: steps.auto_changeset.outputs.has_changeset == 'true' && github.actor != 'github-actions[bot]'
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./packages/eslint-template/package.json').version")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
       - name: Commit version changes
         if: steps.auto_changeset.outputs.has_changeset == 'true' && github.actor != 'github-actions[bot]'
         shell: bash
@@ -64,6 +73,19 @@ jobs:
           git add -A
           git commit -m "chore(release): version packages"
           git push
+      - name: Tag release
+        if: steps.auto_changeset.outputs.has_changeset == 'true' && github.actor != 'github-actions[bot]'
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.release_version.outputs.version }}"
+          TAG="v${VERSION}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists"
+            exit 0
+          fi
+          git tag -a "$TAG" -m "$TAG"
+          git push origin "$TAG"
       - name: Configure npm auth
         if: github.actor != 'github-actions[bot]'
         shell: bash
@@ -80,3 +102,19 @@ jobs:
         run: pnpm changeset-publish
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to GitHub Packages
+        if: steps.auto_changeset.outputs.has_changeset == 'true' && github.actor != 'github-actions[bot]'
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "@prover-coder-ai:registry=https://npm.pkg.github.com" >> "$HOME/.npmrc"
+          printf '%s\n' "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> "$HOME/.npmrc"
+          pnpm --filter @prover-coder-ai/eslint-plugin-suggest-members publish --registry https://npm.pkg.github.com --no-git-checks
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release
+        if: steps.auto_changeset.outputs.has_changeset == 'true' && github.actor != 'github-actions[bot]'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.release_version.outputs.version }}
+          generate_release_notes: true
