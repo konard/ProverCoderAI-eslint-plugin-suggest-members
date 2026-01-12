@@ -8,11 +8,12 @@
 // INVARIANT: only reports when suggestions exist
 // COMPLEXITY: O(n log n)/O(n)
 import type { TSESTree } from "@typescript-eslint/utils"
-import { AST_NODE_TYPES, ESLintUtils } from "@typescript-eslint/utils"
+import { AST_NODE_TYPES } from "@typescript-eslint/utils"
 import type { RuleContext } from "@typescript-eslint/utils/ts-eslint"
 
 import { isModulePath } from "../../core/validators/index.js"
 import { getParserServicesForContext } from "../../shell/shared/import-validation-base.js"
+import { createRule } from "../../shell/shared/rule-creator.js"
 import { runValidationEffect } from "../../shell/shared/validation-runner.js"
 import type { ModulePathIndex } from "../../shell/validation/module-path-index.js"
 import { getModulePathIndex } from "../../shell/validation/module-path-index.js"
@@ -20,10 +21,6 @@ import {
   formatModulePathValidationMessage,
   validateModulePathEffect
 } from "../../shell/validation/module-validation-effect.js"
-
-const createRule = ESLintUtils.RuleCreator((name) =>
-  `https://github.com/ton-ai-core/eslint-plugin-suggest-members#${name}`
-)
 
 const createValidateAndReport = (
   currentFilePath: string,
@@ -50,20 +47,15 @@ const createValidateAndReport = (
   })
 }
 
-export const suggestModulePathsRule = createRule({
-  name: "suggest-module-paths",
-  meta: {
-    type: "problem",
-    docs: {
-      description: "enforce correct module paths by suggesting similar paths when importing non-existent modules"
-    },
-    messages: {
-      suggestModulePaths: "{{message}}"
-    },
-    schema: []
+const defaultOptions: [] = []
+
+export const suggestModulePathsRule = createRule(
+  "suggest-module-paths",
+  {
+    description: "enforce correct module paths by suggesting similar paths when importing non-existent modules",
+    messageId: "suggestModulePaths"
   },
-  defaultOptions: [],
-  create(context) {
+  (context) => {
     const currentFilePath = context.filename
     const parseResult = getParserServicesForContext(context)
     const moduleIndex = parseResult?.program
@@ -97,5 +89,6 @@ export const suggestModulePathsRule = createRule({
         validateAndReport(node, firstArg, modulePath)
       }
     }
-  }
-})
+  },
+  defaultOptions
+)

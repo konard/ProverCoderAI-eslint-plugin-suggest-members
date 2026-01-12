@@ -8,7 +8,7 @@
 // INVARIANT: only reports for unresolved value references
 // COMPLEXITY: O(n log n)/O(n)
 import type { TSESLint, TSESTree } from "@typescript-eslint/utils"
-import { AST_NODE_TYPES, ESLintUtils } from "@typescript-eslint/utils"
+import { AST_NODE_TYPES } from "@typescript-eslint/utils"
 import type { RuleContext, RuleListener } from "@typescript-eslint/utils/ts-eslint"
 import { Effect } from "effect"
 
@@ -16,6 +16,7 @@ import {
   createTypeScriptServiceLayerForContext,
   getParserServicesForContext
 } from "../../shell/shared/import-validation-base.js"
+import { createRule } from "../../shell/shared/rule-creator.js"
 import { runValidationEffect } from "../../shell/shared/validation-runner.js"
 import {
   formatMissingNameValidationMessage,
@@ -95,22 +96,14 @@ const buildListener = (
   }
 }
 
-export const suggestMissingNamesRule = ESLintUtils.RuleCreator((name) =>
-  `https://github.com/ton-ai-core/eslint-plugin-suggest-members#${name}`
-)({
-  name: "suggest-missing-names",
-  meta: {
-    type: "problem",
-    docs: {
-      description: "suggest similar identifiers for unresolved names"
-    },
-    messages: {
-      suggestMissingNames: "{{message}}"
-    },
-    schema: []
+const defaultOptions: [] = []
+
+export const suggestMissingNamesRule = createRule(
+  "suggest-missing-names",
+  {
+    description: "suggest similar identifiers for unresolved names",
+    messageId: "suggestMissingNames"
   },
-  defaultOptions: [],
-  create(context) {
-    return buildListener(context)
-  }
-})
+  (context) => buildListener(context),
+  defaultOptions
+)

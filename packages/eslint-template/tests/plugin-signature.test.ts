@@ -17,6 +17,31 @@ const assertRuleShape = (rule: PluginRule | undefined): void => {
   expect(rule).toBeDefined()
 }
 
+const isConfigArray = (
+  config: TSESLint.FlatConfig.Config | ReadonlyArray<TSESLint.FlatConfig.Config>
+): config is ReadonlyArray<TSESLint.FlatConfig.Config> => Array.isArray(config)
+
+const assertConfigShape = (
+  config: TSESLint.FlatConfig.Config | ReadonlyArray<TSESLint.FlatConfig.Config> | undefined
+): void => {
+  expect(config).toBeDefined()
+  if (!config) return
+
+  const configList = isConfigArray(config) ? config : [config]
+  expect(configList.length).toBeGreaterThan(0)
+
+  for (const entry of configList) {
+    expect(entry.rules).toBeDefined()
+    if (entry.rules) {
+      expect(Object.keys(entry.rules).length).toBeGreaterThan(0)
+    }
+    expect(entry.plugins).toBeDefined()
+    if (entry.plugins) {
+      expect(Object.keys(entry.plugins).length).toBeGreaterThan(0)
+    }
+  }
+}
+
 describe("eslint plugin signature", () => {
   it("satisfies eslint plugin signature", () => {
     const pluginTyped: TSESLint.FlatConfig.Plugin = plugin
@@ -42,28 +67,18 @@ describe("eslint plugin signature", () => {
     }
   })
 
-  it("exposes recommended config", () => {
+  it("exposes recommended configs", () => {
     const pluginTyped: TSESLint.FlatConfig.Plugin = plugin
     const configs = pluginTyped.configs
     expect(configs).toBeDefined()
     if (!configs) return
 
-    const recommended = configs["recommended"]
-    expect(recommended).toBeDefined()
-    if (!recommended) return
-
-    const configList = Array.isArray(recommended) ? recommended : [recommended]
-
-    expect(configList.length).toBeGreaterThan(0)
-    for (const config of configList) {
-      expect(config.rules).toBeDefined()
-      if (config.rules) {
-        expect(Object.keys(config.rules).length).toBeGreaterThan(0)
-      }
-      expect(config.plugins).toBeDefined()
-      if (config.plugins) {
-        expect(Object.keys(config.plugins).length).toBeGreaterThan(0)
-      }
+    const configNames: ReadonlyArray<"recommended" | "flat/recommended"> = [
+      "recommended",
+      "flat/recommended"
+    ]
+    for (const configName of configNames) {
+      assertConfigShape(configs[configName])
     }
   })
 })

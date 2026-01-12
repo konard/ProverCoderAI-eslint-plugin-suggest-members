@@ -10,17 +10,16 @@
 import type { TSESLint } from "@typescript-eslint/utils"
 import type { Linter } from "eslint"
 
-import { toEslintPlugin } from "./core/axioms.js"
-import { name, version } from "./core/plugin-meta.js"
+import { name, namespace, version } from "./core/plugin-meta.js"
+import { RULE_NAMES } from "./core/rule-names.js"
 import { rules } from "./rules/index.js"
-
-type PluginConfig = Linter.Config
 
 type PluginBase = Omit<TSESLint.FlatConfig.Plugin, "configs">
 
 type PluginWithConfigs = PluginBase & {
   readonly configs: {
-    readonly recommended: PluginConfig
+    readonly recommended: TSESLint.FlatConfig.Config
+    readonly "flat/recommended": TSESLint.FlatConfig.Config
   }
 }
 
@@ -29,23 +28,28 @@ const pluginBase: PluginBase = {
   rules
 }
 
-const recommended: PluginConfig = {
-  plugins: {
-    "suggest-members": toEslintPlugin(pluginBase)
-  },
-  rules: {
-    "suggest-members/suggest-exports": "error",
-    "suggest-members/suggest-imports": "error",
-    "suggest-members/suggest-members": "error",
-    "suggest-members/suggest-missing-names": "error",
-    "suggest-members/suggest-module-paths": "error"
+const buildRecommendedRules = (): Linter.RulesRecord => {
+  const entries: Linter.RulesRecord = {}
+  for (const ruleName of RULE_NAMES) {
+    entries[`${namespace}/${ruleName}`] = "error"
   }
+  return entries
+}
+
+const recommendedRules = buildRecommendedRules()
+
+const flatRecommended: TSESLint.FlatConfig.Config = {
+  plugins: {
+    [namespace]: pluginBase
+  },
+  rules: recommendedRules
 }
 
 const plugin: PluginWithConfigs = {
   ...pluginBase,
   configs: {
-    recommended
+    recommended: flatRecommended,
+    "flat/recommended": flatRecommended
   }
 }
 

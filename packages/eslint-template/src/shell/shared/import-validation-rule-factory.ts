@@ -8,9 +8,10 @@
 // INVARIANT: listeners are deterministic
 // COMPLEXITY: O(1)/O(n)
 import type { TSESTree } from "@typescript-eslint/utils"
-import { AST_NODE_TYPES, ESLintUtils } from "@typescript-eslint/utils"
+import { AST_NODE_TYPES } from "@typescript-eslint/utils"
 import type { RuleContext, RuleListener, RuleModule } from "@typescript-eslint/utils/ts-eslint"
 
+import type { RuleName } from "../../core/rule-names.js"
 import { isTypeOnlyImport } from "../../core/validators/index.js"
 import type { ImportValidationConfig, TypeScriptServiceLayerContext } from "./import-validation-base.js"
 import {
@@ -18,28 +19,9 @@ import {
   validateExportSpecifierBase,
   validateImportSpecifierBase
 } from "./import-validation-base.js"
+import { createRule } from "./rule-creator.js"
 
-const createRule = <TResult>(
-  description: string,
-  messageId: string,
-  config: ImportValidationConfig<TResult>,
-  buildListener: (
-    context: RuleContext<string, ReadonlyArray<string>>,
-    config: ImportValidationConfig<TResult>
-  ) => RuleListener
-): RuleModule<string, ReadonlyArray<string>> =>
-  ESLintUtils.RuleCreator.withoutDocs({
-    meta: {
-      type: "problem",
-      docs: { description },
-      messages: { [messageId]: "{{message}}" },
-      schema: []
-    },
-    defaultOptions: [],
-    create(context) {
-      return buildListener(context, config)
-    }
-  })
+const defaultOptions: ReadonlyArray<string> = []
 
 const getModulePathFromImport = (node: TSESTree.ImportDeclaration): string | undefined =>
   typeof node.source.value === "string" ? node.source.value : undefined
@@ -106,11 +88,20 @@ const makeValidationRule = <TResult>(
   ) => RuleListener
 ) =>
 (
-  _ruleName: string,
+  ruleName: RuleName,
   description: string,
   messageId: string,
   config: ImportValidationConfig<TResult>
-): RuleModule<string, ReadonlyArray<string>> => createRule(description, messageId, config, buildListener)
+): RuleModule<string, ReadonlyArray<string>> =>
+  createRule(
+    ruleName,
+    {
+      description,
+      messageId
+    },
+    (context) => buildListener(context, config),
+    defaultOptions
+  )
 
 export const createValidationRule = makeValidationRule(buildImportListeners)
 export const createExportValidationRule = makeValidationRule(createExportValidationListener)

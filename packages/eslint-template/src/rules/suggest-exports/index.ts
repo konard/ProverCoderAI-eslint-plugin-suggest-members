@@ -8,7 +8,7 @@
 // INVARIANT: only reports when suggestions exist
 // COMPLEXITY: O(n log n)/O(n)
 import type { TSESTree } from "@typescript-eslint/utils"
-import { AST_NODE_TYPES, ESLintUtils } from "@typescript-eslint/utils"
+import { AST_NODE_TYPES } from "@typescript-eslint/utils"
 import type { RuleContext, RuleListener } from "@typescript-eslint/utils/ts-eslint"
 import { Effect } from "effect"
 
@@ -18,6 +18,7 @@ import {
   getParserServicesForContext
 } from "../../shell/shared/import-validation-base.js"
 import { createExportValidationListener } from "../../shell/shared/import-validation-rule-factory.js"
+import { createRule } from "../../shell/shared/rule-creator.js"
 import { runValidationEffect } from "../../shell/shared/validation-runner.js"
 import {
   formatExportValidationMessage,
@@ -30,10 +31,6 @@ import {
 
 type SuggestExportsMessageId = "suggestExports"
 type SuggestExportsOptions = []
-
-const createRule = ESLintUtils.RuleCreator((name) =>
-  `https://github.com/ton-ai-core/eslint-plugin-suggest-members#${name}`
-)<SuggestExportsOptions, SuggestExportsMessageId>
 
 const getModulePathFromExport = (
   node: TSESTree.ExportNamedDeclaration
@@ -102,20 +99,14 @@ const buildListener = (
   }
 }
 
-export const suggestExportsRule = createRule({
-  name: "suggest-exports",
-  meta: {
-    type: "problem",
-    docs: {
-      description: "Suggest similar export names when importing non-existent exports"
-    },
-    messages: {
-      suggestExports: "{{message}}"
-    },
-    schema: []
+const defaultOptions: SuggestExportsOptions = []
+
+export const suggestExportsRule = createRule(
+  "suggest-exports",
+  {
+    description: "Suggest similar export names when importing non-existent exports",
+    messageId: "suggestExports"
   },
-  defaultOptions: [],
-  create(context) {
-    return buildListener(context)
-  }
-})
+  (context) => buildListener(context),
+  defaultOptions
+)

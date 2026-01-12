@@ -20,6 +20,7 @@ import {
   makeTypeScriptCompilerServiceLayer,
   type TypeScriptCompilerServiceTag
 } from "../../shell/services/typescript-compiler.js"
+import { createRule } from "../../shell/shared/rule-creator.js"
 import { runValidationEffect } from "../../shell/shared/validation-runner.js"
 import {
   formatMemberValidationMessage,
@@ -27,10 +28,6 @@ import {
   validateMemberPropertyNameEffect,
   validateObjectLiteralPropertyNameEffect
 } from "../../shell/validation/member-validation-effect.js"
-
-const createRule = ESLintUtils.RuleCreator((name) =>
-  `https://github.com/ton-ai-core/eslint-plugin-suggest-members#${name}`
-)
 
 interface NodeMap {
   readonly get: (key: TSESTree.Node) => ts.Node | undefined
@@ -101,20 +98,15 @@ const validateObjectProperty = (
   })
 }
 
-export const suggestMembersRule = createRule({
-  name: "suggest-members",
-  meta: {
-    type: "problem",
-    docs: {
-      description: "enforce correct member names when accessing non-existent properties"
-    },
-    messages: {
-      suggestMembers: "{{message}}"
-    },
-    schema: []
+const defaultOptions: [] = []
+
+export const suggestMembersRule = createRule(
+  "suggest-members",
+  {
+    description: "enforce correct member names when accessing non-existent properties",
+    messageId: "suggestMembers"
   },
-  defaultOptions: [],
-  create(context) {
+  (context) => {
     const parserServices = ESLintUtils.getParserServices(context)
     const program = parserServices.program
     const checker = program.getTypeChecker()
@@ -150,5 +142,6 @@ export const suggestMembersRule = createRule({
         validateLiteralProperty(node)
       }
     }
-  }
-})
+  },
+  defaultOptions
+)

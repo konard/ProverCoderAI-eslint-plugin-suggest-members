@@ -4,13 +4,19 @@
 // REF: AGENTS.md CORE
 // SOURCE: n/a
 // PURITY: CORE
+import type { TSESLint } from "@typescript-eslint/utils"
+
+import type { RuleName } from "../core/rule-names.js"
 import { suggestExportsRule } from "./suggest-exports/index.js"
 import { suggestImportsRule } from "./suggest-imports/index.js"
 import { suggestMembersRule } from "./suggest-members/index.js"
 import { suggestMissingNamesRule } from "./suggest-missing-names/index.js"
 import { suggestModulePathsRule } from "./suggest-module-paths/index.js"
 
-export const rules = {
+export const rules: Record<
+  RuleName,
+  TSESLint.RuleModule<string, ReadonlyArray<string>>
+> = {
   "suggest-exports": suggestExportsRule,
   "suggest-imports": suggestImportsRule,
   "suggest-members": suggestMembersRule,
