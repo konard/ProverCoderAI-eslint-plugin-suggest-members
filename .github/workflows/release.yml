@@ -1,7 +1,9 @@
 name: Release
 on:
-  push:
+  workflow_run:
+    workflows: ["Check"]
     branches: [main]
+    types: [completed]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -13,6 +15,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    if: github.event.workflow_run.conclusion == 'success'
     permissions:
       contents: write
       id-token: write
@@ -22,6 +25,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
       - name: Install dependencies
         uses: ./.github/actions/setup
       - name: Auto changeset (patch if no changeset exists)
@@ -99,7 +103,15 @@ jobs:
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish
-        run: pnpm changeset-publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./packages/eslint-template/package.json').version")"
+          if npm view @prover-coder-ai/eslint-plugin-suggest-members@"${VERSION}" version >/dev/null 2>&1; then
+            echo "Version ${VERSION} already published; skipping npm publish."
+            exit 0
+          fi
+          pnpm changeset-publish
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish to GitHub Packages
