@@ -26,7 +26,6 @@ import {
   normalizeModuleSpecifier,
   stripKnownExtension
 } from "../../core/validation/module-path-utils.js"
-import { isNodeBuiltinModule } from "../../core/validation/node-builtin-exports.js"
 import type { FilesystemError } from "../effects/errors.js"
 import { FilesystemServiceTag } from "../services/filesystem.js"
 import type { ModulePathIndex } from "./module-path-index.js"
@@ -98,7 +97,6 @@ const validatePackageModulePathWithIndex = (
 ): ModulePathValidationResult => {
   const moduleName = extractModuleName(requestedPath)
   if (moduleName.length === 0) return makeValidModuleResult()
-  if (isNodeBuiltinModule(moduleName)) return makeValidModuleResult()
   if (index.packageNameSet.has(moduleName)) return makeValidModuleResult()
 
   const validCandidates = index.packageNames.filter((candidate) => isValidCandidate(candidate, moduleName))
@@ -144,10 +142,6 @@ const validateModulePathWithIndex = (
   }
 
   if (isNodeProtocolSpecifier(requestedPath)) {
-    return makeValidModuleResult()
-  }
-
-  if (isNodeBuiltinModule(requestedPath)) {
     return makeValidModuleResult()
   }
 

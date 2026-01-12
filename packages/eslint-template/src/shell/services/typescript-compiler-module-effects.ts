@@ -10,19 +10,11 @@
 import { Effect, pipe } from "effect"
 import * as ts from "typescript"
 
-import { getNodeBuiltinExports, isNodeBuiltinModule } from "../../core/validation/node-builtin-exports.js"
 import type { TypeScriptServiceError } from "../effects/errors.js"
 import { makeModuleNotFoundError, makeTypeCheckerUnavailableError, makeTypeResolutionError } from "../effects/errors.js"
 import { ignoreErrorToUndefined } from "../shared/effect-utils.js"
 import { findContextFile, findModuleSymbol } from "./typescript-compiler-helpers.js"
 import { createUndefinedResultEffect, formatTypeName, formatTypeSignature } from "./typescript-effect-utils.js"
-
-export const tryGetBuiltinExports = (
-  modulePath: string
-): ReadonlyArray<string> | null => {
-  if (!isNodeBuiltinModule(modulePath)) return null
-  return getNodeBuiltinExports(modulePath) ?? null
-}
 
 export const resolveContextFileEffect = (
   program: ts.Program,
@@ -136,9 +128,6 @@ export const createGetExportsOfModuleEffect = (
   containingFilePath?: string
 ): Effect.Effect<ReadonlyArray<string>, TypeScriptServiceError> =>
   Effect.gen(function*(_) {
-    const builtin = tryGetBuiltinExports(modulePath)
-    if (builtin) return builtin
-
     if (!checker || !program) {
       return yield* _(Effect.fail(makeTypeCheckerUnavailableError()))
     }
