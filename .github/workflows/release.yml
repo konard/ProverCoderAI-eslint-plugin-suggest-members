@@ -123,9 +123,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          printf '%s\n' "@prover-coder-ai:registry=https://npm.pkg.github.com" >> "$HOME/.npmrc"
+          OWNER="${{ github.repository_owner }}"
+          OWNER_LOWER="$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')"
+          PKG_NAME="$(node -p "require('./packages/eslint-template/package.json').name")"
+          PKG_SUFFIX="${PKG_NAME#*/}"
+          if [ "$PKG_SUFFIX" = "$PKG_NAME" ]; then
+            GH_PKG="@${OWNER_LOWER}/${PKG_NAME}"
+          else
+            GH_PKG="@${OWNER_LOWER}/${PKG_SUFFIX}"
+          fi
+          export GH_PKG
+          printf '%s\n' "@${OWNER_LOWER}:registry=https://npm.pkg.github.com" >> "$HOME/.npmrc"
           printf '%s\n' "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> "$HOME/.npmrc"
-          pnpm --filter @prover-coder-ai/eslint-plugin-suggest-members publish --registry https://npm.pkg.github.com --no-git-checks
+          node -e "const fs=require('fs');const path='packages/eslint-template/package.json';const pkg=require('./'+path);pkg.name=process.env.GH_PKG;fs.writeFileSync(path, JSON.stringify(pkg, null, 2)+'\\n');"
+          pnpm --filter ./packages/eslint-template publish --registry https://npm.pkg.github.com --no-git-checks
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Create GitHub Release
