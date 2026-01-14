@@ -3,7 +3,7 @@
 import eslint from '@eslint/js';
 import eslintPlugin from "eslint-plugin-eslint-plugin";
 import tseslint from 'typescript-eslint';
-import vitest from "eslint-plugin-vitest";
+import vitest from "@vitest/eslint-plugin";
 import suggestMembers from "@prover-coder-ai/eslint-plugin-suggest-members-aliased";
 import sonarjs from "eslint-plugin-sonarjs";
 import unicorn from "eslint-plugin-unicorn";
@@ -19,6 +19,20 @@ import eslintCommentsConfigs from "@eslint-community/eslint-plugin-eslint-commen
 const codegenPlugin = fixupPluginRules(
 	codegen as unknown as Parameters<typeof fixupPluginRules>[0],
 );
+
+const noFetchExample = [
+	"Пример:",
+	"  import { FetchHttpClient, HttpClient } from \"@effect/platform\"",
+	"  import { Effect } from \"effect\"",
+	"  const program = Effect.gen(function* () {",
+	"    const client = yield* HttpClient.HttpClient",
+	"    return yield* client.get(`${api}/robots`)",
+	"  }).pipe(",
+	"    Effect.scoped,",
+	"    Effect.provide(FetchHttpClient.layer)",
+	"  )",
+].join("\n");
+
 export default tseslint.config(
   { ignores: ["lib"] },
   eslint.configs.recommended,
@@ -33,11 +47,8 @@ export default tseslint.config(
     languageOptions: {
       parser: tseslint.parser,
 	  globals: { ...globals.node, ...globals.browser },
-      parserOptions: {
-        projectService: {
-          allowDefaultProject: ["*.config.*"],
-          defaultProject: "tsconfig.json",
-        },
+	  parserOptions: {
+        projectService: true,          
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -122,6 +133,40 @@ export default tseslint.config(
 				{
 					selector: "TSUnknownKeyword",
 					message: "Запрещено 'unknown'.",
+				},
+				// CHANGE: запрет прямого fetch в коде
+				// WHY: enforce Effect-TS httpClient as единственный источник сетевых эффектов
+				// QUOTE(ТЗ): "Вместо fetch должно быть всегда написано httpClient от библиотеки Effect-TS"
+				// REF: user-msg-1
+				// SOURCE: n/a
+				// FORMAT THEOREM: ∀call ∈ Calls: callee(call)=fetch → lint_error(call)
+				// PURITY: SHELL
+				// EFFECT: Effect<never, never, never>
+				// INVARIANT: direct fetch calls are forbidden
+				// COMPLEXITY: O(1)
+				{
+					selector: "CallExpression[callee.name='fetch']",
+					message: `Запрещён fetch — используй HttpClient (Effect-TS).\n${noFetchExample}`,
+				},
+				{
+					selector:
+					"CallExpression[callee.object.name='window'][callee.property.name='fetch']",
+					message: `Запрещён window.fetch — используй HttpClient (Effect-TS).\n${noFetchExample}`,
+				},
+				{
+					selector:
+					"CallExpression[callee.object.name='globalThis'][callee.property.name='fetch']",
+					message: `Запрещён globalThis.fetch — используй HttpClient (Effect-TS).\n${noFetchExample}`,
+				},
+				{
+					selector:
+					"CallExpression[callee.object.name='self'][callee.property.name='fetch']",
+					message: `Запрещён self.fetch — используй HttpClient (Effect-TS).\n${noFetchExample}`,
+				},
+				{
+					selector:
+					"CallExpression[callee.object.name='global'][callee.property.name='fetch']",
+					message: `Запрещён global.fetch — используй HttpClient (Effect-TS).\n${noFetchExample}`,
 				},
 				{
 					selector: "TryStatement",
