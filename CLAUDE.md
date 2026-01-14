@@ -265,16 +265,3 @@ describe("Message invariants", () => {
 Каждый эффект — это контролируемое взаимодействие с реальным миром.
 
 ПРИНЦИП: Сначала формализуем, потом программируем.
-
----
-
-Issue to solve: https://github.com/ProverCoderAI/eslint-plugin-suggest-members/issues/5
-Your prepared branch: issue-5-617df97ed0b2
-Your prepared working directory: /tmp/gh-issue-solver-1768393007482
-Your forked repository: konard/ProverCoderAI-eslint-plugin-suggest-members
-Original repository (upstream): ProverCoderAI/eslint-plugin-suggest-members
-
-Proceed.
-
-
-Run timestamp: 2026-01-14T12:16:59.905Z
