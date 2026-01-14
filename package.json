@@ -18,7 +18,7 @@
     "lint:effect": "pnpm --filter @effect-template/eslint-plugin-suggest-members lint:effect",
     "test": "pnpm --filter @prover-coder-ai/eslint-plugin-suggest-members test",
     "typecheck": "pnpm --filter @prover-coder-ai/eslint-plugin-suggest-members typecheck",
-    "lint-app": "pnpm --filter @effect-template/app lint",
+    "lint-app": "pnpm --filter @effect-template/app lint"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.2",
