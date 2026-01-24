@@ -53,6 +53,10 @@
     "vite-tsconfig-paths": "^6.0.4",
     "vitest": "^4.0.18"
   },
+  "peerDependencies": {
+    "eslint": "^8.57.0 || ^9.0.0",
+    "typescript": ">=4.8.4 <6.0.0"
+  },
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
