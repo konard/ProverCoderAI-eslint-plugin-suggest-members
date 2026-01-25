@@ -195,6 +195,12 @@ importers:
       effect:
         specifier: ^3.19.15
         version: 3.19.15
+      eslint:
+        specifier: ^8.57.0 || ^9.0.0
+        version: 9.39.2(jiti@2.6.1)
+      typescript:
+        specifier: '>=4.8.4 <6.0.0'
+        version: 5.9.3
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.3.11
@@ -250,9 +256,6 @@ importers:
       '@vitest/eslint-plugin':
         specifier: ^1.6.6
         version: 1.6.6(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.18(@types/node@25.0.10)(jiti@2.6.1)(yaml@2.8.2))
-      eslint:
-        specifier: ^9.39.2
-        version: 9.39.2(jiti@2.6.1)
       eslint-doc-generator:
         specifier: ^3.0.2
         version: 3.0.2(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
@@ -289,9 +292,6 @@ importers:
       ts-morph:
         specifier: ^27.0.2
         version: 27.0.2
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
       typescript-eslint:
         specifier: ^8.53.1
         version: 8.53.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
@@ -5811,7 +5811,7 @@ snapshots:
 
   eslint@9.39.2(jiti@2.6.1):
     dependencies:
-      '@eslint-community/eslint-utils': 4.9.0(eslint@9.39.2(jiti@2.6.1))
+      '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.2(jiti@2.6.1))
       '@eslint-community/regexpp': 4.12.2
       '@eslint/config-array': 0.21.1
       '@eslint/config-helpers': 0.4.2
