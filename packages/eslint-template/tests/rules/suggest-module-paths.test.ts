@@ -8,10 +8,7 @@ const localModulePathMessage = "Cannot find module \"./module-paths/alhpa\". Did
   "  - ./module-paths/beta"
 const externalModulePathMessage =
   "Cannot find module 'eff1ect' or its corresponding type declarations. Did you mean:\n" +
-  "  - effect\n" +
-  "  - @effect/cli\n" +
-  "  - @effect/rpc\n" +
-  "  - @effect/sql"
+  "  - effect"
 
 ruleTester.run("suggest-module-paths", suggestModulePathsRule, {
   valid: [
