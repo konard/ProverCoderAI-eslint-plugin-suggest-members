@@ -75,5 +75,5 @@
   },
   "name": "@prover-coder-ai/eslint-plugin-suggest-members",
   "type": "module",
-  "version": "0.0.16"
+  "version": "0.0.17"
 }
