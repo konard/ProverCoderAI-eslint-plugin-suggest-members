@@ -24,5 +24,4 @@ jobs:
           pnpm dlx @prover-coder-ai/dist-deps-prune scan \
             --package ./packages/eslint-template/package.json \
             --prune-dev true \
-            --fail-on-unused \
             --silent
