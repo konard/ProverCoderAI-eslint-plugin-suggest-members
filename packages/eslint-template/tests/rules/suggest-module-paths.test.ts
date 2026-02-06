@@ -18,6 +18,14 @@ ruleTester.run("suggest-module-paths", suggestModulePathsRule, {
         import { alpha } from "./module-paths/alpha"
         alpha
       `
+    },
+    // monorepo: importing an existing dependency should not produce a false positive
+    {
+      filename,
+      code: `
+        import { pipe } from "effect"
+        pipe
+      `
     }
   ],
   invalid: [
