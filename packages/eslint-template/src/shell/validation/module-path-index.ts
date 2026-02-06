@@ -100,15 +100,20 @@ const findNearestPackageJson = (startDir: string): string | null => {
 // PURITY: SHELL
 // INVARIANT: returns name or null
 // COMPLEXITY: O(1)/O(1)
+const PackageNameSchema = S.Struct({
+  name: S.String
+}).pipe(S.partial)
+
+const decodePackageName = S.decodeUnknownEither(S.parseJson(PackageNameSchema))
+
 const readPackageNameFromPath = (packageJsonPath: string): string | null => {
   const content = ts.sys.readFile(packageJsonPath)
   if (!content) return null
-  try {
-    const parsed = JSON.parse(content)
-    return typeof parsed.name === "string" && parsed.name.length > 0 ? parsed.name : null
-  } catch {
-    return null
-  }
+  return Either.match(decodePackageName(content), {
+    onLeft: () => null,
+    onRight: (value) =>
+      value.name !== undefined && value.name.length > 0 ? value.name : null
+  })
 }
 
 // CHANGE: collect unique package.json directories from source files
@@ -156,7 +161,7 @@ const discoverWorkspacePackageNames = (
     visitedParents.add(parentDir)
 
     // use getDirectories to enumerate sibling package directories
-    const subdirs = ts.sys.getDirectories?.(parentDir) ?? []
+    const subdirs = ts.sys.getDirectories(parentDir)
     for (const subdir of subdirs) {
       if (subdir === "node_modules") continue
       const sibPkgJson = joinPath(parentDir, subdir, "package.json")
