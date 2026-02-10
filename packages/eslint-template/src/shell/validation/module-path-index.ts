@@ -111,8 +111,7 @@ const readPackageNameFromPath = (packageJsonPath: string): string | null => {
   if (!content) return null
   return Either.match(decodePackageName(content), {
     onLeft: () => null,
-    onRight: (value) =>
-      value.name !== undefined && value.name.length > 0 ? value.name : null
+    onRight: (value) => value.name !== undefined && value.name.length > 0 ? value.name : null
   })
 }
 
