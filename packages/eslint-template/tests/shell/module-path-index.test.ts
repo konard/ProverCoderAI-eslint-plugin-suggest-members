@@ -1,11 +1,13 @@
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
+import { Effect } from "effect"
 import * as ts from "typescript"
 import { beforeAll, describe, expect, it } from "vitest"
 
 import type { ModulePathIndex } from "../../src/shell/validation/module-path-index.js"
 import { buildModulePathIndex } from "../../src/shell/validation/module-path-index.js"
+import { validateModulePathEffect } from "../../src/shell/validation/module-validation-effect.js"
 
 const rootDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -81,6 +83,19 @@ describe("buildModulePathIndex", () => {
       expect(index.canResolveModule).toBeDefined()
       const mainFile = path.join(consumerDir, "src", "index.ts")
       expect(index.canResolveModule?.("non-existent-package-xyz", mainFile)).toBe(false)
+    })
+
+    it("should resolve monorepo alias imports like auth-admin/* via TypeScript fallback", () => {
+      const mainFile = path.join(consumerDir, "src", "index.ts")
+      expect(index.canResolveModule?.("auth-admin/app/lib/auth-config", mainFile)).toBe(true)
+    })
+
+    it("should mark auth-admin/app/lib/auth-config as valid (no false positive)", () => {
+      const mainFile = path.join(consumerDir, "src", "index.ts")
+      const result = Effect.runSync(
+        validateModulePathEffect({}, "auth-admin/app/lib/auth-config", mainFile, index)
+      )
+      expect(result._tag).toBe("Valid")
     })
 
     it("should collect local source files excluding node_modules", () => {
